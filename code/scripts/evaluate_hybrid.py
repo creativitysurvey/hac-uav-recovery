@@ -1,7 +1,6 @@
 """
-Evaluate a trained HAC / HSC / Learned-only / SAC checkpoint.
-Supports overriding the test-time schedule via --eval_variant, --eval_awf_k, --eval_awf_s0
-to decouple training-time curriculum effects from test-time weighting effects.
+Evaluate a trained HAC / HSC / GAC / Learned-only / SAC checkpoint.
+Supports overriding the test-time schedule via --eval_variant, --eval_awf_k, --eval_awf_s0.
 """
 
 import argparse
@@ -24,7 +23,8 @@ from scripts.train_hybrid import fuse_velocities, compute_learned_velocity
 
 
 @torch.no_grad()
-def rollout_policy(env, policy, weight_fn, device, knn_k=8, force_wT=None, granularity="global"):
+def rollout_policy(env, policy, weight_fn, device, knn_k=8, force_wT=None,
+                   granularity="global", use_subnet_feat=False, no_norm_fusion=False):
     cfg = env.cfg
     degrees = []
     for t in range(cfg.T):
@@ -35,12 +35,13 @@ def rollout_policy(env, policy, weight_fn, device, knn_k=8, force_wT=None, granu
 
         v_heur = virtual_force_velocity(positions, cfg.comm_radius, cfg.area_size, v_max=cfg.v_max)
         v_learn = compute_learned_velocity(
-            policy, positions, comp_ids, cfg.area_size, knn_k, cfg.v_max, granularity
+            policy, positions, comp_ids, cfg.area_size, knn_k, cfg.v_max,
+            granularity, use_subnet_feat=use_subnet_feat
         )
 
         wT = force_wT if force_wT is not None else weight_fn(t, cfg.T)
         wE = 1.0 - wT
-        v = fuse_velocities(v_heur, v_learn, wE, wT, cfg.v_max).cpu().numpy()
+        v = fuse_velocities(v_heur, v_learn, wE, wT, cfg.v_max, no_norm_fusion=no_norm_fusion).cpu().numpy()
 
         env.step(v)
         cur_deg = env.average_node_degree()
@@ -54,6 +55,9 @@ def evaluate(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     ckpt = torch.load(args.ckpt, map_location=device)
     granularity = ckpt.get("granularity", ckpt["args"].get("granularity", "global"))
+    use_subnet_feat = ckpt["args"].get("use_subnet_feat", False)
+    no_norm_fusion = ckpt["args"].get("no_norm_fusion", False)
+    in_dim = 4 if use_subnet_feat else 3
 
     if granularity == "subnetwork":
         policy = SubnetSACPolicy(
@@ -61,7 +65,7 @@ def evaluate(args):
         ).to(device)
     else:
         policy = GlobalGACPolicy(
-            in_dim=3, hidden_dim=ckpt["args"]["hidden_dim"], n_layers=ckpt["args"]["n_layers"]
+            in_dim=in_dim, hidden_dim=ckpt["args"]["hidden_dim"], n_layers=ckpt["args"]["n_layers"]
         ).to(device)
 
     policy.load_state_dict(ckpt["state_dict"])
@@ -90,7 +94,8 @@ def evaluate(args):
             t0 = time.time()
             t_r, cov, and_traj, and_final = rollout_policy(
                 env, policy, weight_fn, device,
-                knn_k=ckpt["args"]["knn_k"], force_wT=force_wT, granularity=granularity
+                knn_k=ckpt["args"]["knn_k"], force_wT=force_wT, granularity=granularity,
+                use_subnet_feat=use_subnet_feat, no_norm_fusion=no_norm_fusion
             )
             runtimes.append(time.time() - t0)
             if t_r is None:
@@ -130,8 +135,7 @@ if __name__ == "__main__":
     p.add_argument("--n_trials", type=int, default=50)
     p.add_argument("--T", type=int, default=400)
     p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--eval_variant", choices=["fixed", "adaptive"], default=None,
-                   help="Optional override to test a trained checkpoint under a different evaluation schedule.")
+    p.add_argument("--eval_variant", choices=["fixed", "adaptive"], default=None)
     p.add_argument("--eval_awf_k", type=float, default=None)
     p.add_argument("--eval_awf_s0", type=float, default=None)
     p.add_argument("--eval_force_wT", type=float, default=None)

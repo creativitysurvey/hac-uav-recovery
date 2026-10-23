@@ -1,6 +1,6 @@
 """
 Unified training script for HAC (global hybrid), HSC (subnetwork hybrid),
-Learned-only (global learned), and SAC-Fixed (subnetwork learned).
+GAC-Fixed (global learned without unit-norm fusion), Learned-only, and SAC-Fixed.
 """
 
 import argparse
@@ -21,23 +21,28 @@ from models.losses import connectivity_surrogate_loss, coverage_surrogate_loss, 
 from sim.graph_utils import component_ids_from_positions, sample_grid_points
 
 
-def fuse_velocities(v_heur, v_learn, wE, wT, v_max, eps=1e-3):
+def fuse_velocities(v_heur, v_learn, wE, wT, v_max, eps=1e-3, no_norm_fusion=False):
     """Eq. (4) velocity-level fusion: weighted sum renormalized to magnitude v_max."""
     combined = wE * v_heur + wT * v_learn
+    if no_norm_fusion:
+        return torch.clamp(combined, -v_max, v_max)
     norm = combined.norm(dim=-1, keepdim=True)
     return v_max * combined / (norm + eps)
 
 
-def compute_learned_velocity(policy, positions, comp_ids, area_size, knn_k, v_max, granularity):
+def compute_learned_velocity(policy, positions, comp_ids, area_size, knn_k, v_max, granularity, use_subnet_feat=False):
     if granularity == "subnetwork":
         return policy(positions, comp_ids, area_size, k=knn_k) * v_max
     edge_index = knn_edge_index(positions, k=knn_k)
-    xy_norm, _ = node_features(positions, area_size, comp_ids)
+    xy_norm, subnet_norm = node_features(positions, area_size, comp_ids)
     deg = torch.zeros(positions.shape[0], device=positions.device)
     src = edge_index[0]
     deg.scatter_add_(0, src, torch.ones_like(src, dtype=torch.float32))
     deg_norm = (deg / (deg.max() + 1e-6)).unsqueeze(1)
-    x = torch.cat([xy_norm, deg_norm], dim=1)
+    if use_subnet_feat:
+        x = torch.cat([xy_norm, subnet_norm, deg_norm], dim=1)
+    else:
+        x = torch.cat([xy_norm, deg_norm], dim=1)
     return policy(x, edge_index) * v_max
 
 
@@ -50,10 +55,11 @@ def train(args):
         torch.cuda.manual_seed_all(args.seed)
 
     cfg = SimConfig(T=args.rollout_steps, seed=args.seed)
+    in_dim = 4 if args.use_subnet_feat else 3
     if args.granularity == "subnetwork":
         policy = SubnetSACPolicy(in_dim=3, hidden_dim=args.hidden_dim, n_layers=args.n_layers).to(device)
     else:
-        policy = GlobalGACPolicy(in_dim=3, hidden_dim=args.hidden_dim, n_layers=args.n_layers).to(device)
+        policy = GlobalGACPolicy(in_dim=in_dim, hidden_dim=args.hidden_dim, n_layers=args.n_layers).to(device)
 
     opt = torch.optim.Adam(policy.parameters(), lr=args.lr)
 
@@ -86,12 +92,13 @@ def train(args):
                 v_heur = virtual_force_velocity(positions, cfg.comm_radius, cfg.area_size, v_max=cfg.v_max)
 
             v_learn = compute_learned_velocity(
-                policy, positions, comp_ids, cfg.area_size, args.knn_k, cfg.v_max, args.granularity
+                policy, positions, comp_ids, cfg.area_size, args.knn_k, cfg.v_max,
+                args.granularity, use_subnet_feat=args.use_subnet_feat
             )
 
             wT = args.force_wT if args.force_wT is not None else weight_fn(t, args.rollout_steps)
             wE = 1.0 - wT
-            v = fuse_velocities(v_heur, v_learn, wE, wT, cfg.v_max)
+            v = fuse_velocities(v_heur, v_learn, wE, wT, cfg.v_max, no_norm_fusion=args.no_norm_fusion)
 
             pos_after = torch.clamp(positions + cfg.dt * v, 0, cfg.area_size)
 
@@ -128,8 +135,7 @@ def train(args):
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--variant", choices=["fixed", "adaptive"], required=True)
-    p.add_argument("--granularity", choices=["global", "subnetwork"], default="global",
-                   help="Spatial reasoning granularity of the learned branch: 'global' (HAC/GAC) or 'subnetwork' (HSC/SAC).")
+    p.add_argument("--granularity", choices=["global", "subnetwork"], default="global")
     p.add_argument("--deployment", choices=["random", "uniform"], required=True)
     p.add_argument("--out", type=str, required=True)
     p.add_argument("--epochs", type=int, default=300)
@@ -141,9 +147,13 @@ if __name__ == "__main__":
     p.add_argument("--move_coef", type=float, default=0.01)
     p.add_argument("--coverage_samples", type=int, default=800)
     p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--log_every", type=int, default=10)
+    p.add_argument("--log_every", type=int, default=50)
     p.add_argument("--awf_k", type=float, default=30.0)
     p.add_argument("--awf_s0", type=float, default=0.125)
     p.add_argument("--force_wT", type=float, default=None)
+    p.add_argument("--use_subnet_feat", action="store_true",
+                   help="Include normalized component ID as 4th node feature (used in GAC-Fixed).")
+    p.add_argument("--no_norm_fusion", action="store_true",
+                   help="Use direct velocity output without Eq.(4) unit-norm rescaling (used in GAC-Fixed).")
     args = p.parse_args()
     train(args)

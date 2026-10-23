@@ -9,6 +9,7 @@ import pandas as pd
 ARCHS = [
     "hac_fixed",
     "hac_smooth_k5_s07",
+    "gac_fixed",
     "learned_only",
     "heuristic_only",
     "sac_fixed",
@@ -20,7 +21,11 @@ ARCHS = [
     "hac_adaptive_k30_s05",
     "hac_adaptive_k10_s05",
     "decouple_trainSteep_evalFixed",
+    "decouple_trainSteep_evalSmooth",
     "decouple_trainSmooth_evalFixed",
+    "decouple_trainSmooth_evalSteep",
+    "decouple_trainFixed_evalSteep",
+    "decouple_trainFixed_evalSmooth",
 ]
 DEPLOYMENTS = ["random", "uniform"]
 
@@ -40,11 +45,13 @@ def load_seed_csvs(results_dir, arch, deployment, seeds):
 
 
 def summarize(df):
-    metrics = ["REC_mean", "COV_mean", "AND_mean", "n_valid_of_50"]
+    metrics = ["REC_mean", "COV_mean", "AND_mean", "n_valid_of_50", "runtime_mean_s"]
     rows = []
     for fr, g in df.groupby("failure_ratio"):
         row = {"failure_ratio": fr, "n_seeds": g["seed"].nunique()}
         for m in metrics:
+            if m not in g.columns:
+                continue
             vals = g[m].dropna().values
             if len(vals) == 0:
                 row[f"{m}_agg"] = "n/a"
@@ -74,7 +81,7 @@ def main(args):
             combined_rows.append(s)
 
     if not combined_rows:
-        print("\nNo results found yet. Run scripts/run_full_multiseed_study.sh first.")
+        print("\nNo results found yet.")
         return
 
     combined = pd.concat(combined_rows, ignore_index=True)
