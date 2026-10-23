@@ -58,16 +58,16 @@ class SubnetSACPolicy(nn.Module):
             comp_ids, return_inverse=True, return_counts=True
         )
         n_comps = unique_comps.shape[0]
-        if n_comps <= 1:
-            return torch.zeros_like(positions)
+        if n_comps == 0:
+            return positions * 0.0
 
         centroids = torch.zeros(n_comps, 2, device=device, dtype=positions.dtype)
         centroids.scatter_add_(0, inverse_idx.unsqueeze(1).expand(-1, 2), positions)
         centroids = centroids / counts.unsqueeze(1).float()
 
-        size_norm = (counts.float() / positions.shape[0]).unsqueeze(1)
+        size_norm = (counts.float() / max(positions.shape[0], 1)).unsqueeze(1)
         x_sub = torch.cat([centroids / area_size, size_norm], dim=1)  # (C, 3)
-        edge_index_sub = knn_edge_index(centroids, k=min(k, n_comps - 1))
+        edge_index_sub = knn_edge_index(centroids, k=max(0, min(k, n_comps - 1)))
 
         h = x_sub
         for conv in self.convs:
@@ -80,7 +80,7 @@ def knn_edge_index(positions: torch.Tensor, k: int = 8):
     """Build a symmetric k-NN graph in Euclidean space over all given coordinates."""
     with torch.no_grad():
         n = positions.shape[0]
-        if n <= 1:
+        if n <= 1 or k <= 0:
             return torch.zeros((2, 0), dtype=torch.long, device=positions.device)
         dist = torch.cdist(positions, positions)
         k_eff = min(k + 1, n)

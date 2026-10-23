@@ -104,9 +104,10 @@ def train(args):
             positions = pos_after
 
         total_loss = total_loss / args.rollout_steps
-        total_loss.backward()
-        torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
-        opt.step()
+        if total_loss.requires_grad:
+            total_loss.backward()
+            torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
+            opt.step()
 
         if epoch % args.log_every == 0:
             n_comp = len(np.unique(component_ids_from_positions(positions.detach().cpu().numpy(), cfg.comm_radius)))
