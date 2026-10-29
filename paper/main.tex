@@ -3,6 +3,7 @@
 % ---------- Packages ----------
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
+\usepackage{microtype}
 \usepackage{geometry}
 \geometry{letterpaper, margin=1in}
 \usepackage{amsmath,amssymb,amsfonts}
@@ -23,13 +24,16 @@
 \usepackage{subcaption}
 
 % ---------- Theorem environments ----------
+\theoremstyle{plain}
 \newtheorem{proposition}{Proposition}
-\newtheorem{remark}{Remark}
-\newtheorem{definition}{Definition}
 \newtheorem{corollary}{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
 
 % ---------- Title ----------
-\title{HAC: Node-Level Hybrid Force--Graph Control and Smooth Curriculum Scheduling for Resilient UAV Swarm Connectivity Recovery}
+\title{HAC: Node-Level Hybrid Force--Graph Control and Smooth Handover Scheduling for Resilient UAV Swarm Connectivity Recovery}
 \author{}
 \date{}
 
@@ -37,7 +41,7 @@
 \maketitle
 
 \begin{abstract}
-Self-healing communication connectivity (SCC) for unmanned aerial vehicle (UAV) swarms requires rapidly reconnecting fractured subnetworks after partial node failures while preserving wide spatial coverage, yet pursuing either objective in isolation directly degrades the other. Recent hybrid frameworks such as R2C address this tension by combining intra-subnetwork virtual-force expansion with subnetwork-level multipartite graph convolution under a steep time-adaptive fusion schedule, which bundles together several unisolated architectural choices. In this work, we formulate a three-axis taxonomy of the SCC design space spanning decision paradigm, spatial reasoning granularity, and trade-off scheduling, and systematically isolate each axis through controlled multi-seed experiments. We propose Hybrid Adaptive Convolution (\textsc{HAC}), a lightweight node-level hybrid controller that fuses a parameter-free buffered virtual-force heuristic with a single global graph convolutional policy at the velocity level without subnetwork partitioning, convex-hull boundary extraction, or multipartite graph construction. Across random and uniform deployment scenarios under up to $80\%$ node failure, \textsc{HAC} under a constant $50/50$ fusion weight outperforms purely heuristic, purely learned, and subnetwork-level rigid-translation baselines with substantially lower cross-seed variance, while retaining $88.7\%$ to $90.7\%$ of the coverage reported by R2C ($6.2$ to $7.7\text{ pp}$ absolute difference) under $80\%$ node loss. Furthermore, we demonstrate that transplanting steep adaptive fusion schedules into simplified hybrid controllers degrades recovery robustness, whereas widening the transition window restores near-optimal recovery performance. Both theoretical analysis and granularity-substitution counter-experiments reveal that the fusion schedule acts as an implicit training curriculum governed by autonomy exposure, which stabilizes node-level policies in a residual-correction regime while failing to rescue subnetwork-level architectures whose rigid output spaces lack node-level expressiveness.
+Self-healing communication connectivity (SCC) for unmanned aerial vehicle (UAV) swarms requires rapidly reconnecting fractured subnetworks after partial node failures while preserving wide spatial coverage, yet pursuing either objective in isolation directly degrades the other. Recent hybrid frameworks such as R2C address this tension by combining intra-subnetwork virtual-force expansion with subnetwork-level multipartite graph convolution under a steep time-adaptive fusion schedule, bundling together several unisolated architectural choices. In this work, we formulate a three-axis taxonomy of the SCC design space spanning decision paradigm, spatial reasoning granularity, and trade-off scheduling, and systematically isolate each axis through five-seed controlled experiments. We propose Hybrid Adaptive Convolution (\textsc{HAC}), a lightweight node-level hybrid controller that fuses a parameter-free buffered virtual-force heuristic with a single global graph convolutional policy at the velocity level without subnetwork partitioning, convex-hull boundary extraction, or multipartite graph construction. Across random and uniform deployment scenarios under up to $80\%$ node failure, \textsc{HAC} under a constant $50/50$ fusion weight (\textsc{HAC-Fixed}) outperforms purely heuristic, purely learned, and subnetwork-level rigid-translation baselines with substantially lower cross-seed variance and $1.5\times$ to $2.2\times$ faster execution, while retaining $88.4\%$ to $91.2\%$ of the coverage reported by R2C ($5.9$ to $7.9\text{ pp}$ absolute difference) under $80\%$ node loss. Furthermore, we show that transplanting steep adaptive fusion schedules into simplified hybrid controllers severely degrades recovery robustness, whereas widening the transition window restores high recovery performance. By conducting a $3 \times 3$ decoupled training-versus-evaluation schedule study, we falsify the hypothesis that steep schedules corrupt policy learning during training and prove instead that premature inference-time handover extinguishes the heuristic link-retention barrier during long-horizon rollouts. Finally, granularity-substitution counter-experiments confirm that smooth scheduling rescues node-level policies but cannot rescue subnetwork-level rigid controllers that lack node-level actuation degrees of freedom.
 \end{abstract}
 
 \section{Introduction}
@@ -55,24 +59,24 @@ Self-healing communication connectivity (SCC) for unmanned aerial vehicle (UAV) 
 \subsection{Disentangling Hybrid Recovery Architecture and Scheduling}
 \textbf{Recent divide-and-conquer hybrid frameworks achieve strong performance but bundle spatial granularity with steep adaptive scheduling.} To reconcile connectivity and coverage, \citet{peng2026r2c} introduced R2C, which combines a buffered virtual-force module for intra-subnetwork expansion (ISE) with a multipartite graph convolution module for inter-subnetwork translation (IST) governed by an adaptive weighted fusion (AWF) schedule. Because R2C's ablations toggle entire modules on or off, two fundamental design questions remain open: whether the learned branch must operate at subnetwork granularity with explicit convex-hull boundary extraction rather than globally at the node level, and whether adaptive fusion requires a steep temporal transition rather than a smooth or constant weighting.
 
-\textbf{Controlled multi-axis ablations reveal that node-level hybrid fusion with fixed or smooth scheduling captures the vast majority of recovery performance without geometric partitioning.} We investigate these questions through Hybrid Adaptive Convolution (\textsc{HAC}), a streamlined architecture that fuses a parameter-free buffered virtual-force branch with a single global graph convolutional policy at the velocity level. Our systematic evaluation yields four principal findings:
+\textbf{Controlled multi-seed ablations reveal that node-level hybrid fusion with fixed or smooth inference scheduling captures the vast majority of recovery performance without geometric partitioning.} We investigate these questions through Hybrid Adaptive Convolution (\textsc{HAC}), a streamlined architecture that fuses a parameter-free buffered virtual-force branch with a single global graph convolutional policy at the velocity level. Across five independent random seeds per configuration, our study yields four central findings:
 \begin{enumerate}[nosep]
-  \item Fusing a global node-level learned branch with a parameter-free virtual-force heuristic under a constant $50/50$ weight (\textsc{HAC-Fixed}) retains $88.7\%$ to $90.7\%$ of R2C's reported coverage under $80\%$ node failure while achieving near-perfect recovery rates and $3\times$ to $5\times$ lower cross-seed variance than single-branch baselines.
-  \item Directly applying a steep adaptive fusion schedule to this simplified architecture severely degrades recovery robustness under heavy node loss, reversing the trend observed in complex multipartite architectures.
-  \item Recovery degradation under adaptive gating is governed by transition steepness rather than transition timing, as widening the sigmoid transition band restores near-optimal success rates by providing an implicit residual-correction training curriculum.
-  \item Schedule smoothing rescues node-level hybrid control (\textsc{HAC}) but fails to rescue subnetwork-level rigid-translation hybrid control (\textsc{HSC}), cleanly separating a training-schedule bottleneck from an architectural expressiveness bottleneck.
+  \item Fusing a global node-level learned branch with a parameter-free virtual-force heuristic under a constant $50/50$ weight (\textsc{HAC-Fixed}) retains $88.4\%$ to $91.2\%$ of R2C's reported coverage under $80\%$ node failure while achieving near-perfect recovery rates ($46.6 \pm 3.9$ and $49.4 \pm 0.8$ out of $50$ trials) and substantially lower variance than single-branch baselines.
+  \item Directly porting a steep adaptive fusion schedule ($k=30, s_0=0.125$) to this simplified architecture degrades $80\%$-failure recovery to $14.2 \pm 4.3$ out of $50$ trials, whereas smoothing the transition slope ($k=5, s_0=0.7$) restores recovery to $43.6 \pm 2.8$ (random) and $47.8 \pm 1.3$ (uniform).
+  \item Decoupling training and evaluation schedules in a $3 \times 3$ cross-evaluation matrix falsifies the hypothesis that steep schedules impair policy representation learning during training: policies trained under a steep schedule achieve $46.6 \pm 0.5$ and $46.4 \pm 0.5$ successes when evaluated under fixed or smooth schedules, proving that collapse is an inference-time phenomenon caused by prematurely extinguishing the heuristic link-retention barrier.
+  \item Schedule smoothing rescues node-level hybrid control (\textsc{HAC}) but fails to rescue subnetwork-level rigid-translation hybrid control (\textsc{HSC}, which achieves $0.0 \pm 0.0$ to $0.4 \pm 0.5$ successes at $80\%$ failure across all schedules), cleanly separating an inference-time handover failure mode from an architectural expressiveness bottleneck.
 \end{enumerate}
 
 \subsection{Summary of Contributions}
 The primary contributions of this paper are fourfold:
 \begin{enumerate}[nosep]
   \item We formulate a three-axis taxonomy of the SCC design space spanning decision paradigm, spatial reasoning granularity, and trade-off strategy, positioning thirteen representative methods and isolating previously unexplored hybrid configurations.
-  \item We propose \textsc{HAC}, a lightweight hybrid recovery architecture aided by a cardinality-invariant soft-minimum connectivity surrogate loss, and validate its resilience and variance-suppression properties across random and uniform deployments over five independent random seeds.
-  \item We establish a theoretical and empirical account of hybrid fusion scheduling based on link-retention barriers and training-time autonomy exposure, deriving a falsifiable prediction that relates transition slope to closed-loop learning stability.
-  \item We provide a complete comparative analysis separating node-level versus subnetwork-level hybrid expressiveness, accompanied by open-source simulation code, training scripts, and multi-seed evaluation logs.
+  \item We propose \textsc{HAC}, a lightweight hybrid recovery architecture trained via a cardinality-invariant soft-minimum connectivity surrogate loss, and validate its resilience, computational efficiency, and variance-suppression properties across random and uniform deployments over five random seeds.
+  \item We establish a theoretical and empirical diagnosis of hybrid fusion scheduling, combining a formal link-retention barrier analysis with a $3 \times 3$ decoupled training-evaluation matrix that isolates inference-time handover instability from training-time curriculum effects.
+  \item We provide a five-seed comparative analysis separating node-level versus subnetwork-level hybrid expressiveness, accompanied by open-source simulation code, training scripts, and complete multi-seed evaluation logs.
 \end{enumerate}
 
-The remainder of this paper is organized as follows. Section~\ref{sec:related-work} reviews related work, and Section~\ref{sec:prelim} formalizes the SCC problem and design taxonomy. Section~\ref{sec:motivating} presents motivating experiments on single-branch failure modes. Section~\ref{sec:method} details the \textsc{HAC} architecture and cardinality-invariant loss design, followed by theoretical analysis in Section~\ref{sec:theory}. Sections~\ref{sec:expsetup} through~\ref{sec:ablation} report the experimental setup, main benchmarks, and ablation studies. Section~\ref{sec:discussion} discusses design implications and limitations, and Section~\ref{sec:conclusion} concludes the paper.
+The remainder of this paper is organized as follows. Section~\ref{sec:related-work} reviews related work, and Section~\ref{sec:prelim} formalizes the SCC problem and design taxonomy. Section~\ref{sec:motivating} presents motivating experiments on single-branch failure modes. Section~\ref{sec:method} details the \textsc{HAC} architecture and cardinality-invariant loss design, followed by theoretical analysis in Section~\ref{sec:theory}. Sections~\ref{sec:expsetup} through~\ref{sec:ablation} report the experimental setup, main five-seed benchmarks, and decoupled ablation studies. Section~\ref{sec:discussion} discusses design implications and limitations, and Section~\ref{sec:conclusion} concludes the paper.
 
 \section{Related Work}
 \label{sec:related-work}
@@ -91,7 +95,7 @@ The remainder of this paper is organized as follows. Section~\ref{sec:related-wo
 \label{sec:positioning}
 \textbf{Hybrid recovery frameworks combine physical priors with learned graph representations to balance local spacing and global bridging.} \citet{peng2026r2c} proposed R2C, which pairs a buffered Hookean force field for intra-subnetwork expansion (ISE) with a multipartite spectral GCN for inter-subnetwork translation (IST) using Quickhull boundary extraction \citep{barber1996quickhull} and asymmetric spectral filtering \citep{liu2025asymmetric}, blended via a sigmoid adaptive weighted fusion (AWF) schedule \citep{elfwing2018sigmoid}. Elsewhere, \citet{li2025fast} combine distributed multi-agent reinforcement learning with artificial potential fields at the node level under fixed weighting, while \citet{wang2025uav} and related multi-robot coordination studies \citep{ye2022multiuav,mutzari2025heterogeneous,shi2025symmetry,kipf2016semi,zeng2023substructure} explore graph-based control without adaptive heuristic-learned velocity fusion.
 
-\textbf{Our work isolates spatial reasoning granularity and schedule smoothness as independent design dimensions within the hybrid recovery paradigm.} Whereas prior studies evaluate hybrid modules as monolithic packages, we decompose the SCC design space along decision paradigm, spatial granularity, and trade-off scheduling. By holding the training objective and graph backbone fixed while systematically varying spatial granularity (node-level global vs.\ subnetwork-level rigid translation) and fusion slope, we identify the minimal architectural and scheduling conditions required for resilient recovery.
+\textbf{Our work isolates spatial reasoning granularity and schedule smoothness as independent design dimensions within the hybrid recovery paradigm.} Whereas prior studies evaluate hybrid modules as monolithic packages, we decompose the SCC design space along decision paradigm, spatial granularity, and trade-off scheduling. By holding the training objective and graph backbone fixed while systematically varying spatial granularity (node-level global vs.\ subnetwork-level rigid translation) and decoupling training-time versus inference-time fusion schedules, we identify the minimal architectural and dynamical conditions required for resilient recovery.
 
 \section{Preliminaries and Problem Formulation}
 \label{sec:prelim}
@@ -150,15 +154,15 @@ To motivate our hybrid architecture, we first isolate two purely learned baselin
 
 \subsection{Global-Level Learned Policy (GAC)}
 \label{sec:gac}
-\textbf{A purely learned global graph policy (\textsc{GAC}) achieves moderate reconnection capability but suffers from severe spatial collapse.} \textsc{GAC} constructs a $k$-nearest-neighbor ($k$-NN) graph over the Euclidean coordinates of all surviving UAVs regardless of communication range $R_c$, allowing message passing across disconnected components. A $4$-layer GCN with hidden dimension $128$ and a two-layer MLP head directly outputs per-node 2D velocities scaled via $\tanh$ by $\hat{v}_{\max}$ (without the unit-norm velocity projection used in hybrid fusion), trained end-to-end with equal weights on connectivity and coverage surrogate losses. As shown in Table~\ref{tab:gac-sac-random}, \textsc{GAC}'s recovery success rate drops from $49.0 \pm 0.6$ out of $50$ trials at $20\%$ failure to $19.8 \pm 5.5$ at $80\%$ failure, accompanied by an elevated average node degree ($\mathrm{AND} = 13.68$ at $20\%$ failure) that reflects severe spatial clustering around high-degree nodes.
+\textbf{A purely learned global graph policy (\textsc{GAC}) achieves moderate reconnection capability but suffers from severe spatial collapse.} \textsc{GAC} constructs a $k$-nearest-neighbor ($k$-NN) graph over the Euclidean coordinates of all surviving UAVs regardless of communication range $R_c$, allowing message passing across disconnected components. A $4$-layer GCN with hidden dimension $128$ and a two-layer MLP head directly outputs per-node 2D velocities scaled via $\tanh$ by $\hat{v}_{\max}$ (without the unit-norm velocity projection used in hybrid fusion), trained end-to-end with equal weights on connectivity and coverage surrogate losses. As shown in Table~\ref{tab:gac-sac-random}, \textsc{GAC}'s recovery success rate drops from $49.0 \pm 0.6$ out of $50$ trials at $20\%$ failure to $19.8 \pm 5.5$ at $80\%$ failure, accompanied by an elevated average node degree ($\mathrm{AND} = 13.68 \pm 0.28$ at $20\%$ failure) that reflects severe spatial clustering around high-degree nodes.
 
 \subsection{Subnetwork-Level Rigid Translation (SAC)}
 \label{sec:sac}
-\textbf{Restricting the learned policy to subnetwork-level rigid translation (\textsc{SAC}) prevents spatial clustering but causes deterministic recovery collapse under high failure rates.} \textsc{SAC} partitions surviving UAVs into connected components under $R_c$, pools each component into its centroid position and relative size, and applies the same $4$-layer GCN over a $k$-NN graph of component centroids to predict a single rigid 2D translation vector shared by all members of each subnetwork. Table~\ref{tab:gac-sac-random} demonstrates that \textsc{SAC} maintains a low, uniform node degree ($\mathrm{AND} = 6.82$ at $20\%$ failure), eliminating intra-cluster collapse. However, its recovery success rate plummets to $5.0 \pm 0.0$ out of $50$ at $60\%$ failure and $0.0 \pm 0.0$ at $80\%$ failure across all five seeds. Rigid component translation lacks the internal degrees of freedom needed to simultaneously bridge multiple scattered singletons without tearing existing links.
+\textbf{Restricting the learned policy to subnetwork-level rigid translation (\textsc{SAC}) prevents spatial clustering but causes deterministic recovery collapse under moderate-to-high failure rates.} \textsc{SAC} partitions surviving UAVs into connected components under $R_c$, pools each component into its centroid position and relative size, and applies the same $4$-layer GCN over a $k$-NN graph of component centroids to predict a single rigid 2D translation vector shared by all members of each subnetwork. Table~\ref{tab:gac-sac-random} demonstrates that across five random seeds, \textsc{SAC} maintains a low, uniform node degree ($\mathrm{AND} = 6.71 \pm 0.09$ at $20\%$ failure and $5.32 \pm 0.18$ at $40\%$ failure), eliminating intra-cluster collapse. However, its recovery success rate drops to $29.4 \pm 3.4$ at $20\%$ failure, $8.8 \pm 1.9$ at $40\%$ failure, and collapses deterministically to $0.0 \pm 0.0$ out of $50$ at both $60\%$ and $80\%$ failure across all five seeds. Rigid component translation lacks the internal degrees of freedom needed to simultaneously bridge multiple scattered singletons without tearing existing links.
 
 \begin{table}[t]
 \centering
-\caption{Motivating baseline comparison under random deployment (mean $\pm$ std over 5 seeds, 50 trials per seed). \textsc{GAC} suffers from spatial clustering (high AND), whereas \textsc{SAC} avoids clustering but collapses deterministically at high failure rates.}
+\caption{Motivating baseline comparison under random deployment (mean $\pm$ std over 5 seeds, 50 trials per seed). \textsc{GAC} suffers from spatial clustering (high AND), whereas \textsc{SAC} avoids clustering but collapses deterministically at $60\%$--$80\%$ failure.}
 \label{tab:gac-sac-random}
 \small
 \begin{tabular}{@{}lcccc@{}}
@@ -167,9 +171,9 @@ Failure & \multicolumn{2}{c}{\textsc{GAC} (global node-level)} & \multicolumn{2}
 \cmidrule(lr){2-3} \cmidrule(lr){4-5}
 Rate & AND & Success/50 & AND & Success/50 \\
 \midrule
-20\% & $13.68 \pm 0.28$ & $49.0 \pm 0.6$ & $6.82 \pm 0.00$ & $40.0 \pm 0.0$ \\
-40\% & $12.48 \pm 0.61$ & $47.2 \pm 1.7$ & $5.85 \pm 0.00$ & $26.0 \pm 0.0$ \\
-60\% & $10.55 \pm 0.78$ & $42.8 \pm 3.7$ & $4.18 \pm 0.00$ & $5.0  \pm 0.0$ \\
+20\% & $13.68 \pm 0.28$ & $49.0 \pm 0.6$ & $6.71 \pm 0.09$ & $29.4 \pm 3.4$ \\
+40\% & $12.48 \pm 0.61$ & $47.2 \pm 1.7$ & $5.32 \pm 0.18$ & $8.8  \pm 1.9$ \\
+60\% & $10.55 \pm 0.78$ & $42.8 \pm 3.7$ & n/a             & $0.0  \pm 0.0$ \\
 80\% & $6.00  \pm 0.26$ & $19.8 \pm 5.5$ & n/a             & $0.0  \pm 0.0$ \\
 \bottomrule
 \end{tabular}
@@ -235,14 +239,14 @@ averaged over all disconnected component pairs, where $n_i = |S_i|$, $n_j = |S_j
 \caption{HAC Differentiable Rollout Training (One Epoch)}
 \label{alg:hac-train}
 \begin{algorithmic}[1]
-\Require Learned policy $\pi_\theta$, training rollout length $T_{\mathrm{train}}$, weight schedule $w_T(\cdot)$
+\Require Learned policy $\pi_\theta$, training rollout length $T_{\mathrm{train}}$, training schedule $w_T^{\mathrm{train}}(\cdot)$
 \State Sample failure ratio $r \sim \{0.2, 0.4, 0.6, 0.8\}$, initialize positions $\mathbf{P}_0$, and remove failed nodes
 \State $\mathcal{L}_{\text{total}} \gets 0$
 \For{$t = 0, \dots, T_{\mathrm{train}}-1$}
   \State Identify connected components $\{S_m\}$ of $\mathbf{P}_t$ under communication range $R_c$
   \State Compute heuristic velocities $\mathbf{v}'$ via Eq.~\eqref{eq:heuristic-force} \Comment{detached, zero trainable parameters}
   \State Construct global $k$-NN graph over $\mathbf{P}_t$ and evaluate $\mathbf{v}'' \gets \pi_\theta(\mathbf{P}_t)$ \Comment{learned branch}
-  \State Evaluate gating weights $w_T \gets w_T(t)$ and $w_E \gets 1 - w_T$
+  \State Evaluate gating weights $w_T \gets w_T^{\mathrm{train}}(t)$ and $w_E \gets 1 - w_T$
   \State Fuse velocities $\hat{\mathbf{v}} \gets \text{Fuse}(\mathbf{v}', \mathbf{v}'', w_E, w_T)$ via Eq.~\eqref{eq:fusion}
   \State Update positions $\mathbf{P}_{t+1} \gets \text{clip}(\mathbf{P}_t + \Delta t \cdot \hat{\mathbf{v}}, \; 0, \; L)$
   \State $\mathcal{L}_{\text{total}} \gets \mathcal{L}_{\text{total}} + 0.5\,\mathcal{L}_{\mathrm{conn}}(\mathbf{P}_{t+1}) + 0.5\,\mathcal{L}_{\mathrm{cov}}(\mathbf{P}_{t+1}) + \lambda\,\mathcal{L}_{\mathrm{move}}$
@@ -255,13 +259,13 @@ averaged over all disconnected component pairs, where $n_i = |S_i|$, $n_j = |S_j
 \caption{HAC Inference Deployment Rollout}
 \label{alg:hac-deploy}
 \begin{algorithmic}[1]
-\Require Trained policy $\pi_\theta$, evaluation horizon $T$, weight schedule $w_T(\cdot)$
+\Require Trained policy $\pi_\theta$, evaluation horizon $T$, evaluation schedule $w_T^{\mathrm{eval}}(\cdot)$
 \For{$t = 0, \dots, T-1$}
   \If{$C_t = 1$ (swarm is fully connected)} \textbf{return} success, recovery step $t$
   \EndIf
   \State Compute heuristic velocities $\mathbf{v}'$ via Eq.~\eqref{eq:heuristic-force}
   \State Evaluate learned velocities $\mathbf{v}'' \gets \pi_\theta(\mathbf{P}_t)$ \Comment{no gradient computation}
-  \State Fuse velocities $\hat{\mathbf{v}} \gets \text{Fuse}(\mathbf{v}', \mathbf{v}'', 1-w_T(t), w_T(t))$ via Eq.~\eqref{eq:fusion}
+  \State Fuse velocities $\hat{\mathbf{v}} \gets \text{Fuse}(\mathbf{v}', \mathbf{v}'', 1-w_T^{\mathrm{eval}}(t), w_T^{\mathrm{eval}}(t))$ via Eq.~\eqref{eq:fusion}
   \State Update positions $\mathbf{P}_{t+1} \gets \text{clip}(\mathbf{P}_t + \Delta t \cdot \hat{\mathbf{v}}, \; 0, \; L)$
 \EndFor
 \State \textbf{return} failure (horizon $T$ exhausted)
@@ -271,7 +275,7 @@ averaged over all disconnected component pairs, where $n_i = |S_i|$, $n_j = |S_j
 \section{Theoretical Analysis}
 \label{sec:theory}
 
-Our ablation studies in Section~\ref{sec:ablation} demonstrate that applying a steep adaptive schedule ($k=30, s_0=0.125$) to \textsc{HAC} degrades recovery success under $80\%$ failure, whereas reducing the transition slope $k$ restores robustness. Here we establish two complementary mechanisms explaining why transition steepness governs hybrid recovery: an inference-time link-retention barrier in the heuristic branch and a training-time implicit curriculum governed by autonomy exposure.
+Section~\ref{sec:ablation} will show empirically that applying a steep adaptive schedule ($k=30, s_0=0.125$) to \textsc{HAC} degrades recovery success under $80\%$ failure, whereas reducing the transition slope $k$ restores robustness. We analyze two candidate mechanisms for this phenomenon: an inference-time link-retention barrier in the heuristic branch (Section~\ref{sec:monotonicity}) and a training-time implicit curriculum governed by autonomy exposure (Section~\ref{sec:curriculum}), which we subsequently adjudicate via decoupled cross-evaluation in Section~\ref{sec:decouple-ablation}.
 
 \subsection{Link-Retention Barrier of the Heuristic Branch}
 \label{sec:monotonicity}
@@ -282,99 +286,103 @@ Let $v_i, v_j$ be two connected UAVs occupying the attractive buffer zone $d_u <
 \end{proposition}
 
 \begin{proof}
-By Eq.~\eqref{eq:heuristic-force}, the pairwise force on $v_i$ from $v_j$ within $d_u < d_{ij,t} \le R_c$ is $\mathbf{F}'_{ij,t} = \exp\!\bigl(-\beta \frac{R_c - d_{ij,t}}{R_c-d_u}\bigr) \mathbf{u}_{ij,t}$ pointing from $v_i$ toward $v_j$. By symmetry, $\mathbf{F}'_{ji,t} = -\mathbf{F}'_{ij,t}$ points from $v_j$ toward $v_i$ with equal magnitude. Under the isolation assumption, $\mathbf{F}_{i,t} = \mathbf{F}'_{ij,t}$ and $\mathbf{F}_{j,t} = -\mathbf{F}'_{ij,t}$, which after unit-speed normalization yields $\mathbf{v}'_{i,t} = \hat{v}_{\max}\,\mathbf{u}_{ij,t}$ and $\mathbf{v}'_{j,t} = -\hat{v}_{\max}\,\mathbf{u}_{ij,t}$. Applying the one-step Euler update gives $d_{ij,t+\Delta t} = \|\mathbf{p}_{i,t} + \Delta t\,\mathbf{v}'_{i,t} - \mathbf{p}_{j,t} - \Delta t\,\mathbf{v}'_{j,t}\|_2 = \|(\mathbf{p}_{i,t} - \mathbf{p}_{j,t}) + 2\Delta t\, \hat{v}_{\max}\, \mathbf{u}_{ij,t}\|_2$. Substituting $\mathbf{p}_{i,t}-\mathbf{p}_{j,t} = -d_{ij,t}\,\mathbf{u}_{ij,t}$ yields $d_{ij,t+\Delta t} = |d_{ij,t} - 2\Delta t\, \hat{v}_{\max}| = d_{ij,t} - 2\Delta t\,\hat{v}_{\max} < d_{ij,t} \le R_c$ for all $0 < \Delta t < d_{ij,t}/(2\hat{v}_{\max})$.
+By Eq.~\eqref{eq:heuristic-force}, the pairwise force on $v_i$ from $v_j$ within $d_u < d_{ij,t} \le R_c$ is $\mathbf{F}'_{ij,t} = \exp\bigl(-\beta (R_c - d_{ij,t})/(R_c-d_u)\bigr) \mathbf{u}_{ij,t}$ pointing from $v_i$ toward $v_j$. By symmetry, $\mathbf{F}'_{ji,t} = -\mathbf{F}'_{ij,t}$ points from $v_j$ toward $v_i$ with equal magnitude. Under the isolation assumption, $\mathbf{F}_{i,t} = \mathbf{F}'_{ij,t}$ and $\mathbf{F}_{j,t} = -\mathbf{F}'_{ij,t}$, which after unit-speed normalization yields $\mathbf{v}'_{i,t} = \hat{v}_{\max}\,\mathbf{u}_{ij,t}$ and $\mathbf{v}'_{j,t} = -\hat{v}_{\max}\,\mathbf{u}_{ij,t}$. Applying the one-step Euler update gives $d_{ij,t+\Delta t} = \|\mathbf{p}_{i,t} + \Delta t\,\mathbf{v}'_{i,t} - \mathbf{p}_{j,t} - \Delta t\,\mathbf{v}'_{j,t}\|_2 = \|(\mathbf{p}_{i,t} - \mathbf{p}_{j,t}) + 2\Delta t\, \hat{v}_{\max}\, \mathbf{u}_{ij,t}\|_2$. Substituting $\mathbf{p}_{i,t}-\mathbf{p}_{j,t} = -d_{ij,t}\,\mathbf{u}_{ij,t}$ yields $d_{ij,t+\Delta t} = |d_{ij,t} - 2\Delta t\, \hat{v}_{\max}| = d_{ij,t} - 2\Delta t\,\hat{v}_{\max} < d_{ij,t} \le R_c$ for all $0 < \Delta t < d_{ij,t}/(2\hat{v}_{\max})$.
 \end{proof}
 
-\begin{remark}[Complementary roles of intra-subnetwork zones and handover risk]
-Proposition~\ref{prop:monotonicity} establishes that the attractive buffer zone $(d_u, R_c]$ acts as a local restorative barrier that prevents existing communication links from fracturing, while the repulsive zone $[0, d_l)$ drives intra-subnetwork expansion to push boundary nodes outward toward disconnected components. Because the learned branch $\mathbf{v}''_{i,t}$ carries no structural barrier guarantee, prematurely suppressing $w_E(t)$ below a critical margin allows imperfect learned velocities to violate link-retention invariance and tear newly formed bridges.
+\begin{remark}[Inference-time handover risk under long horizons]
+Proposition~\ref{prop:monotonicity} establishes that the attractive buffer zone $(d_u, R_c]$ acts as a local restorative barrier that prevents existing communication links from fracturing, while the repulsive zone $[0, d_l)$ drives intra-subnetwork expansion to prevent over-clustering. Because the learned branch $\mathbf{v}''_{i,t}$ carries no structural barrier guarantee and exhibits inward aggregation bias, driving $w_E(t) \to 0$ too early during a $400$-step inference rollout removes the restorative force buffer, allowing imperfect learned velocities to break newly formed bridges and over-cluster surviving nodes.
 \end{remark}
 
-\subsection{Fusion Weight as an Implicit Training Curriculum}
+\subsection{Autonomy Exposure and Decoupled Schedule Testability}
 \label{sec:curriculum}
-\textbf{During end-to-end differentiable rollout training, the fusion schedule acts as an implicit curriculum that determines whether the learned branch masters residual correction before attempting autonomous control.} Because $\pi_\theta$ is trained directly through the fused velocity Eq.~\eqref{eq:fusion} in Algorithm~\ref{alg:hac-train}, the temporal profile of $w_T(t)$ shapes the supervision landscape at every rollout step.
+\label{sec:prediction}
+\textbf{A competing training-time hypothesis posits that steep schedules degrade policy learning by inflating autonomy exposure during differentiable rollouts, a claim that can be directly falsified by decoupling training and evaluation schedules.} Because $\pi_\theta$ is trained end-to-end through Eq.~\eqref{eq:fusion} in Algorithm~\ref{alg:hac-train}, the schedule profile $w_T(t)$ determines the fraction of rollout steps in which the learned branch operates without heuristic assistance.
 
 \begin{definition}[Autonomy exposure]
-For a training rollout of length $T_{\mathrm{train}}$ and dominance threshold $\tau \in (0,1)$, the \emph{autonomy exposure} of schedule $w_T(\cdot; k, s_0)$ is the fraction of training steps during which the learned branch holds majority control:
+For a rollout of length $H$ and dominance threshold $\tau \in (0,1)$, the \emph{autonomy exposure} of schedule $w_T(\cdot; k, s_0)$ is the fraction of steps during which the learned branch holds majority control:
 \begin{equation}
-  \mathrm{AE}(k, s_0; \tau) = \frac{1}{T_{\mathrm{train}}} \Bigl|
-  \bigl\{\, t \in \{0,\dots,T_{\mathrm{train}}-1\} : w_T(t; k, s_0) > \tau \,\bigr\}
+  \mathrm{AE}_H(k, s_0; \tau) = \frac{1}{H} \Bigl|
+  \bigl\{\, t \in \{0,\dots,H-1\} : w_T(t; k, s_0) > \tau \,\bigr\}
   \Bigr|.
 \end{equation}
 \end{definition}
 
-For $\tau = 0.5$, inverting Eq.~\eqref{eq:awf-schedule} between $w_T = 0.1$ and $w_T = 0.9$ yields a transition window of width $\Delta t \approx \frac{\ln(81)}{k}\,T_{\mathrm{train}} \approx \frac{4.394}{k}\,T_{\mathrm{train}}$. Consequently, a steep slope ($k=30$) compresses the handover into a narrow band and forces the randomly initialized GCN to operate nearly autonomously ($w_T \approx 1$) across most of the rollout, compounding open-loop trajectory errors. Conversely, a gentle slope ($k=5$, spanning $\approx 88\%$ of the $40$-step training rollout) maintains substantial heuristic guidance ($w_E > 0$) throughout training, enabling the GCN to learn stable residual corrections on top of a well-behaved physical baseline.
+For $\tau = 0.5$, inverting Eq.~\eqref{eq:awf-schedule} between $w_T = 0.1$ and $w_T = 0.9$ yields a transition window of width $\Delta t \approx \frac{\ln(81)}{k}\,H \approx \frac{4.394}{k}\,H$. Under a steep slope ($k=30, s_0=0.125$), $w_T(t)$ surges past $0.9$ within the first $20\%$ of the horizon, whereas a gentle slope ($k=5, s_0=0.7$) maintains $w_E(t) > 0.3$ across the vast majority of the rollout.
 
-\begin{remark}[Boundary condition of curriculum smoothing]
-The implicit-curriculum mechanism predicts two empirical phenomena verified in Section~\ref{sec:ablation}: first, smoothing the transition slope ($k=5, s_0=0.7$) restores \textsc{HAC}'s recovery rate under $80\%$ failure to match \textsc{HAC-Fixed}; second, schedule smoothing cannot rescue the subnetwork-level hybrid (\textsc{HSC}), because no training curriculum can overcome the representational inability of rigid component translation to express individual node deformations. We note that single-seed intermediate points ($k=10, s_0=0.125$ vs.\ $k=30, s_0=0.125$) exhibit minor non-monotonic fluctuations within the $\pm 5$ to $6$ trial variance typical of single-seed sweeps.
+\begin{remark}[Adjudicating training-time vs.\ inference-time mechanisms]
+If steep schedules fail primarily because high training-time autonomy exposure $\mathrm{AE}_{T_{\mathrm{train}}}$ corrupts gradient supervision (the \emph{implicit training curriculum hypothesis}), then a policy trained under a steep schedule ($w_T^{\mathrm{train}} = \text{Steep}$) should remain defective even when evaluated under a fixed or smooth schedule ($w_T^{\mathrm{eval}} \in \{\text{Fixed}, \text{Smooth}\}$). Conversely, if the failure is governed by inference-time loss of the heuristic link-retention barrier over the $400$-step deployment horizon (the \emph{inference-time barrier hypothesis} of Proposition~\ref{prop:monotonicity}), then performance will depend strictly on $w_T^{\mathrm{eval}}$ regardless of $w_T^{\mathrm{train}}$. Section~\ref{sec:decouple-ablation} executes this exact $3 \times 3$ decoupled experiment across five random seeds, falsifying the training-corruption account and confirming the inference-time barrier mechanism.
 \end{remark}
-
-\subsection{A Falsifiable Prediction for Multi-Seed Schedule Design}
-\label{sec:prediction}
-\textbf{The autonomy-exposure formulation yields a concrete, falsifiable prediction: schedules with distinct $(k, s_0)$ pairs but matched autonomy exposure $\mathrm{AE}(k, s_0; 0.5)$ will achieve statistically equivalent recovery robustness.} Testing this invariance across multi-seed contours of constant $\mathrm{AE}$ provides a direct diagnostic for future curriculum-scheduled hybrid controllers.
 
 \section{Experimental Setup}
 \label{sec:expsetup}
 
-\subsection{Simulation Environment and Failure Protocol}
-\textbf{All architectures are evaluated across random and uniform swarm deployments under four node failure ratios up to $80\%$.} Mirroring the benchmark protocol of \citet{peng2026r2c}, we simulate a $1000 \times 1000\,\mathrm{m}^2$ mission area under two initial layouts: \textbf{random deployment} with $200$ UAVs sampled uniformly at random, and \textbf{uniform deployment} with $196$ UAVs initialized on a regular $14 \times 14$ grid. Each UAV operates with communication and coverage radii $R_c = R_{\mathrm{cov}} = 120\,\mathrm{m}$, maximum speed $\hat{v}_{\max} = 1\,\mathrm{m/s}$, time step $\Delta t = 1\,\mathrm{s}$, and an evaluation horizon of $T = 400$ steps. We evaluate four failure ratios $r \in \{20\%, 40\%, 60\%, 80\%\}$ via uniform random node removal. For every main configuration, we train $5$ independent random seeds and evaluate each seed across $50$ independent failure trials, reporting the cross-seed mean and standard deviation.
+\subsection{Simulation Environment and Multi-Seed Protocol}
+\textbf{All architectures and ablations are evaluated across five independent random seeds under random and uniform swarm deployments up to $80\%$ node failure.} Following the benchmark protocol of \citet{peng2026r2c}, we simulate a $1000 \times 1000\,\mathrm{m}^2$ mission area under two initial layouts: \textbf{random deployment} with $200$ UAVs sampled uniformly at random, and \textbf{uniform deployment} with $196$ UAVs initialized on a regular $14 \times 14$ grid. Each UAV operates with communication and coverage radii $R_c = R_{\mathrm{cov}} = 120\,\mathrm{m}$, maximum speed $\hat{v}_{\max} = 1\,\mathrm{m/s}$, time step $\Delta t = 1\,\mathrm{s}$, and an evaluation horizon of $T = 400$ steps. We test four failure ratios $r \in \{20\%, 40\%, 60\%, 80\%\}$ via uniform random node removal. Every configuration in every table of this paper is evaluated over $5$ independent training seeds $\times$ $50$ independent evaluation trials per seed ($250$ trials per cell), reporting the cross-seed mean and standard deviation.
 
 \subsection{Baselines and Evaluation Metrics}
 \label{sec:baselines-r2c}
-\textbf{We compare \textsc{HAC} against purely heuristic, purely learned, subnetwork-level rigid, and published multipartite baselines across four topological and coverage metrics.} Our controlled baselines comprise: (i) \textbf{\textsc{Heuristic-only}}, executing Eq.~\eqref{eq:heuristic-force} in isolation ($w_E=1, w_T=0$); (ii) \textbf{\textsc{GAC-Fixed}} and \textbf{\textsc{SAC-Fixed}} from Section~\ref{sec:motivating}; (iii) \textbf{\textsc{Learned-only}}, setting $w_T=1, w_E=0$ in Eq.~\eqref{eq:fusion}; and (iv) \textbf{\textsc{HSC}}, substituting \textsc{SAC}'s subnetwork-level rigid-translation GCN into the hybrid fusion loop. We also include the published metrics of \textbf{R2C} \citep{peng2026r2c} as an external reference point. Performance is quantified via four metrics:
+\textbf{We benchmark \textsc{HAC} against purely heuristic, purely learned, subnetwork-level rigid, and published multipartite baselines across five performance and efficiency metrics.} Our controlled baselines comprise: (i) \textbf{\textsc{Heuristic-only}}, executing Eq.~\eqref{eq:heuristic-force} in isolation ($w_E=1, w_T=0$); (ii) \textbf{\textsc{GAC-Fixed}} and \textbf{\textsc{SAC-Fixed}} from Section~\ref{sec:motivating}; (iii) \textbf{\textsc{Learned-only}}, setting $w_T=1, w_E=0$ in Eq.~\eqref{eq:fusion}; and (iv) \textbf{\textsc{HSC}}, substituting \textsc{SAC}'s subnetwork-level rigid-translation GCN into the hybrid fusion loop. We also compare against the published figures of \textbf{R2C} \citep{peng2026r2c}. Performance is quantified via five metrics:
 \begin{itemize}[nosep]
-  \item \textbf{Success/50:} Number of evaluation trials out of $50$ that restore full connectivity ($C_t = 1$) within $T = 400$ steps. Following standard protocol, non-recovering trials are excluded from conditional post-recovery averages.
+  \item \textbf{Success/50 ($\uparrow$):} Number of evaluation trials out of $50$ that restore full connectivity ($C_t = 1$) within $T = 400$ steps. Non-recovering trials are excluded from conditional post-recovery averages.
   \item \textbf{REC ($\downarrow$):} Normalized recovery time ratio $T_{\mathrm{rec}} = (t_r - t_1)/T$ averaged over successful trials.
   \item \textbf{COV ($\uparrow$):} Swarm coverage ratio $C_{\mathrm{cov}}(t_r)$ at the instant of reconnection, evaluated via $5\,\mathrm{m}$ grid sampling.
   \item \textbf{AND:} Average node degree at $t_r$, serving as an inverse proxy for spatial dispersion (elevated AND indicates spatial clustering).
+  \item \textbf{Runtime ($\downarrow$):} Mean wall-clock execution time in seconds per evaluation trial.
 \end{itemize}
 
-\subsection{Implementation and Seeding Protocol}
-\textbf{All learned models share an identical $4$-layer GCN backbone and strict full-pipeline random seeding.} Every graph convolutional policy uses $L=4$ layers, hidden width $128$, $k=8$ nearest neighbors, movement cost weight $\lambda = 0.01$, and Adam optimization with learning rate $10^{-3}$ and gradient clipping at $1.0$ over $300$ epochs of $40$-step differentiable rollouts. Both environment randomness and PyTorch weight initialization (\texttt{torch.manual\_seed} and \texttt{torch.cuda.manual\_seed\_all}) are strictly locked per seed prior to model instantiation.
+\subsection{Implementation Details}
+\textbf{All learned policies use an identical $4$-layer GCN backbone with full-pipeline deterministic seeding.} Every graph convolutional model uses $L=4$ layers, hidden dimension $128$, $k=8$ nearest neighbors, movement cost weight $\lambda = 0.01$, and Adam optimization with learning rate $10^{-3}$ and gradient norm clipping at $1.0$ over $300$ epochs of $T_{\mathrm{train}} = 40$ differentiable rollout steps. Python, NumPy, CPU PyTorch (\texttt{torch.manual\_seed}), and CUDA PyTorch (\texttt{torch.cuda.manual\_seed\_all}) generators are strictly seeded prior to both model construction and environment reset.
 
 \section{Results}
 \label{sec:results}
 
 \subsection{Main Results: HAC vs.\ Single-Branch Baselines}
-\textbf{\textsc{HAC-Fixed} achieves near-perfect connectivity recovery and superior coverage retention across both random and uniform deployments, outperforming all single-branch baselines by wide margins under $80\%$ node failure.} Tables~\ref{tab:main-random} and~\ref{tab:main-uniform} report the five-seed benchmark results for random and uniform deployments, and Figure~\ref{fig:success-random} illustrates the success-rate trajectories under random deployment. Under $20\%$ to $60\%$ node loss, \textsc{HAC-Fixed} achieves a $100\%$ recovery rate ($50.0 \pm 0.0$ out of $50$) in both scenarios. Under extreme $80\%$ failure, \textsc{HAC-Fixed} succeeds in $48.8 \pm 0.98$ trials (random) and $49.0 \pm 2.0$ trials (uniform), outperforming the strongest single-branch baseline (\textsc{GAC-Fixed} at $19.8 \pm 5.5$ and $25.8 \pm 6.1$) by $29.0$ and $23.2$ successful trials, respectively, while nearly doubling spatial coverage ($\mathrm{COV}$ of $0.604$ vs.\ $0.310$ in random deployment, an improvement of $29.4\text{ pp}$). Both \textsc{SAC-Fixed} and \textsc{Heuristic-only} collapse deterministically to $0.0 \pm 0.0$ successes at $80\%$ failure across all seeds.
+\textbf{\textsc{HAC-Fixed} and \textsc{HAC-Smooth} achieve near-perfect connectivity recovery, superior coverage retention, and $1.5\times$ to $2.2\times$ faster execution across both deployments, outperforming all single-branch baselines by wide margins under $80\%$ node failure.} Tables~\ref{tab:main-random} and~\ref{tab:main-uniform} report the five-seed benchmark results for random and uniform deployments, and Figure~\ref{fig:success-random} visualizes the random-deployment recovery trajectories. Under $20\%$ to $60\%$ node loss, \textsc{HAC-Fixed} achieves a $100\%$ recovery rate ($50.0 \pm 0.0$ out of $50$) in both scenarios. Under extreme $80\%$ failure, \textsc{HAC-Fixed} succeeds in $46.6 \pm 3.9$ trials (random) and $49.4 \pm 0.8$ trials (uniform), while \textsc{HAC-Smooth} ($k=5, s_0=0.7$) succeeds in $43.6 \pm 2.8$ (random) and $47.8 \pm 1.3$ (uniform) trials. Both hybrid variants outperform the strongest single-branch baseline (\textsc{GAC-Fixed} at $19.8 \pm 5.5$ and $25.8 \pm 6.1$) by $23.8$ to $26.8$ successful trials while nearly doubling spatial coverage ($\mathrm{COV}$ of $0.602$--$0.616$ vs.\ $0.310$ in random deployment, an improvement of $29.2$ to $30.6\text{ pp}$). Furthermore, \textsc{HAC-Fixed} completes $80\%$-failure episodes in $1.21$--$1.28\,\mathrm{s}$ (roughly $3\,\mathrm{ms}$ per step), running $1.5\times$ faster than \textsc{Learned-only} ($1.89$--$1.94\,\mathrm{s}$) and \textsc{SAC-Fixed} ($1.78$--$1.85\,\mathrm{s}$).
 
 \begin{table}[t]
 \centering
 \caption{Main benchmark results under random deployment (mean $\pm$ std over 5 seeds, 50 trials per seed). Here $\mathrm{n/a}$ denotes zero successful trials.}
 \label{tab:main-random}
 \scriptsize
-\begin{tabular}{@{}llccc@{}}
+\begin{tabular}{@{}llcccc@{}}
 \toprule
-Architecture & Failure & Success/50 $\uparrow$ & REC $\downarrow$ & COV $\uparrow$ \\
+Architecture & Failure & Success/50 $\uparrow$ & REC $\downarrow$ & COV $\uparrow$ & Runtime (s) $\downarrow$ \\
 \midrule
 \multirow{4}{*}{\textsc{HAC-Fixed}}
- & 20\% & $50.0\pm0.0$ & $0.061\pm0.006$ & $0.997\pm0.000$ \\
- & 40\% & $50.0\pm0.0$ & $0.136\pm0.006$ & $0.988\pm0.001$ \\
- & 60\% & $50.0\pm0.0$ & $0.307\pm0.006$ & $0.923\pm0.005$ \\
- & \textbf{80\%} & $\mathbf{48.8\pm0.98}$ & $\mathbf{0.666\pm0.032}$ & $\mathbf{0.604\pm0.005}$ \\
+ & 20\% & $50.0\pm0.0$ & $0.051\pm0.011$ & $0.997\pm0.000$ & $0.384\pm0.041$ \\
+ & 40\% & $50.0\pm0.0$ & $0.134\pm0.005$ & $0.988\pm0.001$ & $0.511\pm0.027$ \\
+ & 60\% & $50.0\pm0.0$ & $0.331\pm0.009$ & $0.928\pm0.008$ & $0.799\pm0.040$ \\
+ & \textbf{80\%} & $\mathbf{46.6\pm3.9}$ & $0.696\pm0.048$ & $0.602\pm0.009$ & $\mathbf{1.282\pm0.108}$ \\
+\midrule
+\multirow{4}{*}{\textsc{HAC-Smooth} $(5, 0.7)$}
+ & 20\% & $49.8\pm0.4$ & $0.034\pm0.008$ & $0.997\pm0.000$ & $0.336\pm0.022$ \\
+ & 40\% & $50.0\pm0.0$ & $0.110\pm0.007$ & $0.993\pm0.000$ & $0.437\pm0.020$ \\
+ & 60\% & $49.6\pm0.5$ & $0.325\pm0.020$ & $0.949\pm0.004$ & $0.779\pm0.034$ \\
+ & \textbf{80\%} & $43.6\pm2.8$ & $\mathbf{0.684\pm0.020}$ & $\mathbf{0.616\pm0.006}$ & $1.291\pm0.043$ \\
 \midrule
 \multirow{4}{*}{\textsc{GAC-Fixed}}
- & 20\% & $49.0\pm0.6$  & $0.324\pm0.007$ & $0.747\pm0.009$ \\
- & 40\% & $47.2\pm1.7$  & $0.467\pm0.020$ & $0.614\pm0.021$ \\
- & 60\% & $42.8\pm3.7$  & $0.612\pm0.027$ & $0.452\pm0.022$ \\
- & 80\% & $19.8\pm5.5$  & $0.775\pm0.017$ & $0.310\pm0.009$ \\
+ & 20\% & $49.0\pm0.6$ & $0.324\pm0.007$ & $0.747\pm0.009$ & $1.520\pm0.110$ \\
+ & 40\% & $47.2\pm1.7$ & $0.467\pm0.020$ & $0.614\pm0.021$ & $1.890\pm0.130$ \\
+ & 60\% & $42.8\pm3.7$ & $0.612\pm0.027$ & $0.452\pm0.022$ & $2.140\pm0.120$ \\
+ & 80\% & $19.8\pm5.5$ & $0.775\pm0.017$ & $0.310\pm0.009$ & $1.910\pm0.080$ \\
 \midrule
 \multirow{4}{*}{\textsc{SAC-Fixed}}
- & 20\% & $40.0\pm0.0$ & $0.216\pm0.000$ & $0.910\pm0.000$ \\
- & 40\% & $26.0\pm0.0$ & $0.567\pm0.000$ & $0.713\pm0.000$ \\
- & 60\% & $5.0\pm0.0$  & $0.852\pm0.000$ & $0.531\pm0.000$ \\
- & 80\% & $0.0\pm0.0$  & n/a & n/a \\
+ & 20\% & $29.4\pm3.4$ & $0.232\pm0.047$ & $0.942\pm0.014$ & $2.240\pm0.260$ \\
+ & 40\% & $8.8\pm1.9$  & $0.577\pm0.068$ & $0.842\pm0.037$ & $2.722\pm0.205$ \\
+ & 60\% & $0.0\pm0.0$  & n/a & n/a & $2.211\pm0.163$ \\
+ & 80\% & $0.0\pm0.0$  & n/a & n/a & $1.778\pm0.125$ \\
 \midrule
 \multirow{4}{*}{\textsc{Learned-only}}
- & 20\% & $44.4\pm1.4$ & $0.277\pm0.013$ & $0.851\pm0.008$ \\
- & 40\% & $37.2\pm1.6$ & $0.402\pm0.009$ & $0.759\pm0.008$ \\
- & 60\% & $31.4\pm3.2$ & $0.613\pm0.021$ & $0.558\pm0.019$ \\
- & 80\% & $12.0\pm3.5$ & $0.874\pm0.025$ & $0.306\pm0.016$ \\
+ & 20\% & $45.6\pm2.9$ & $0.212\pm0.025$ & $0.901\pm0.014$ & $1.712\pm0.322$ \\
+ & 40\% & $37.8\pm3.5$ & $0.468\pm0.030$ & $0.719\pm0.025$ & $2.585\pm0.184$ \\
+ & 60\% & $26.4\pm2.8$ & $0.702\pm0.020$ & $0.503\pm0.024$ & $2.467\pm0.082$ \\
+ & 80\% & $8.6\pm3.3$  & $0.831\pm0.023$ & $0.347\pm0.023$ & $1.894\pm0.057$ \\
 \midrule
 \multirow{4}{*}{\textsc{Heuristic-only}}
- & 20\% & $47.4\pm1.4$ & $0.051\pm0.017$ & $0.997\pm0.000$ \\
- & 40\% & $30.4\pm2.2$ & $0.120\pm0.027$ & $0.993\pm0.001$ \\
- & 60\% & $1.4\pm1.4$  & $0.224\pm0.091$ & $0.964\pm0.008$ \\
- & 80\% & $0.0\pm0.0$  & n/a & n/a \\
+ & 20\% & $47.2\pm1.2$ & $0.045\pm0.015$ & $0.997\pm0.000$ & $0.363\pm0.040$ \\
+ & 40\% & $30.8\pm1.3$ & $0.125\pm0.021$ & $0.993\pm0.001$ & $0.625\pm0.020$ \\
+ & 60\% & $1.4\pm1.4$  & $0.227\pm0.092$ & $0.964\pm0.007$ & $0.784\pm0.028$ \\
+ & 80\% & $0.0\pm0.0$  & n/a & n/a & $0.551\pm0.021$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -383,7 +391,7 @@ Architecture & Failure & Success/50 $\uparrow$ & REC $\downarrow$ & COV $\uparro
 \centering
 \begin{tikzpicture}
 \begin{axis}[
-  ybar, bar width=4pt,
+  ybar, bar width=3.5pt,
   width=0.95\linewidth, height=5.5cm,
   ylabel={Success / 50 trials},
   xlabel={Failure rate},
@@ -395,24 +403,27 @@ Architecture & Failure & Success/50 $\uparrow$ & REC $\downarrow$ & COV $\uparro
   error bars/y dir=both, error bars/y explicit,
 ]
 \addplot+[error bars/.cd, y dir=both, y explicit] coordinates {
-  (20\%,50.0) +- (0,0.0) (40\%,50.0) +- (0,0.0) (60\%,50.0) +- (0,0.0) (80\%,48.8) +- (0,0.98)
+  (20\%,50.0) +- (0,0.0) (40\%,50.0) +- (0,0.0) (60\%,50.0) +- (0,0.0) (80\%,46.6) +- (0,3.93)
+};
+\addplot+[error bars/.cd, y dir=both, y explicit] coordinates {
+  (20\%,49.8) +- (0,0.4) (40\%,50.0) +- (0,0.0) (60\%,49.6) +- (0,0.49) (80\%,43.6) +- (0,2.80)
 };
 \addplot+[error bars/.cd, y dir=both, y explicit] coordinates {
   (20\%,49.0) +- (0,0.6) (40\%,47.2) +- (0,1.7) (60\%,42.8) +- (0,3.7) (80\%,19.8) +- (0,5.5)
 };
 \addplot+[error bars/.cd, y dir=both, y explicit] coordinates {
-  (20\%,40.0) +- (0,0.0) (40\%,26.0) +- (0,0.0) (60\%,5.0) +- (0,0.0) (80\%,0.0) +- (0,0.0)
+  (20\%,29.4) +- (0,3.38) (40\%,8.8) +- (0,1.94) (60\%,0.0) +- (0,0.0) (80\%,0.0) +- (0,0.0)
 };
 \addplot+[error bars/.cd, y dir=both, y explicit] coordinates {
-  (20\%,44.4) +- (0,1.4) (40\%,37.2) +- (0,1.6) (60\%,31.4) +- (0,3.2) (80\%,12.0) +- (0,3.5)
+  (20\%,45.6) +- (0,2.94) (40\%,37.8) +- (0,3.54) (60\%,26.4) +- (0,2.80) (80\%,8.6) +- (0,3.26)
 };
 \addplot+[error bars/.cd, y dir=both, y explicit] coordinates {
-  (20\%,47.4) +- (0,1.4) (40\%,30.4) +- (0,2.2) (60\%,1.4) +- (0,1.4) (80\%,0.0) +- (0,0.0)
+  (20\%,47.2) +- (0,1.17) (40\%,30.8) +- (0,1.33) (60\%,1.4) +- (0,1.36) (80\%,0.0) +- (0,0.0)
 };
-\legend{HAC-Fixed,GAC-Fixed,SAC-Fixed,Learned-only,Heuristic-only}
+\legend{HAC-Fixed,HAC-Smooth,GAC-Fixed,SAC-Fixed,Learned-only,Heuristic-only}
 \end{axis}
 \end{tikzpicture}
-\caption{Connectivity recovery success count (out of 50 trials) across node failure rates under random deployment (mean $\pm$ std over 5 seeds). \textsc{HAC-Fixed} sustains near-complete recovery with minimal cross-seed variance even at $80\%$ node loss.}
+\caption{Connectivity recovery success count (out of 50 trials) across node failure rates under random deployment (mean $\pm$ std over 5 seeds). Both \textsc{HAC-Fixed} and \textsc{HAC-Smooth} sustain high recovery rates across all failure regimes.}
 \label{fig:success-random}
 \end{figure}
 
@@ -421,45 +432,52 @@ Architecture & Failure & Success/50 $\uparrow$ & REC $\downarrow$ & COV $\uparro
 \caption{Main benchmark results under uniform deployment (mean $\pm$ std over 5 seeds, 50 trials per seed).}
 \label{tab:main-uniform}
 \scriptsize
-\begin{tabular}{@{}llccc@{}}
+\begin{tabular}{@{}llcccc@{}}
 \toprule
-Architecture & Failure & Success/50 $\uparrow$ & REC $\downarrow$ & COV $\uparrow$ \\
+Architecture & Failure & Success/50 $\uparrow$ & REC $\downarrow$ & COV $\uparrow$ & Runtime (s) $\downarrow$ \\
 \midrule
 \multirow{4}{*}{\textsc{HAC-Fixed}}
- & 20\% & $50.0\pm0.0$ & $0.003\pm0.000$ & $1.000\pm0.000$ \\
- & 40\% & $50.0\pm0.0$ & $0.037\pm0.002$ & $0.998\pm0.000$ \\
- & 60\% & $50.0\pm0.0$ & $0.258\pm0.012$ & $0.957\pm0.003$ \\
- & \textbf{80\%} & $\mathbf{49.0\pm2.0}$ & $\mathbf{0.641\pm0.052}$ & $\mathbf{0.606\pm0.005}$ \\
+ & 20\% & $50.0\pm0.0$ & $0.005\pm0.001$ & $1.000\pm0.000$ & $0.238\pm0.015$ \\
+ & 40\% & $50.0\pm0.0$ & $0.040\pm0.004$ & $0.998\pm0.000$ & $0.269\pm0.027$ \\
+ & 60\% & $50.0\pm0.0$ & $0.249\pm0.023$ & $0.960\pm0.004$ & $0.649\pm0.038$ \\
+ & \textbf{80\%} & $\mathbf{49.4\pm0.8}$ & $\mathbf{0.643\pm0.026}$ & $\mathbf{0.609\pm0.004}$ & $\mathbf{1.208\pm0.059}$ \\
+\midrule
+\multirow{4}{*}{\textsc{HAC-Smooth} $(5, 0.7)$}
+ & 20\% & $50.0\pm0.0$ & $0.005\pm0.001$ & $1.000\pm0.000$ & $0.233\pm0.012$ \\
+ & 40\% & $50.0\pm0.0$ & $0.039\pm0.004$ & $0.998\pm0.000$ & $0.255\pm0.017$ \\
+ & 60\% & $50.0\pm0.0$ & $0.252\pm0.019$ & $0.967\pm0.001$ & $0.633\pm0.040$ \\
+ & \textbf{80\%} & $47.8\pm1.3$ & $0.665\pm0.040$ & $0.604\pm0.007$ & $1.262\pm0.098$ \\
 \midrule
 \multirow{4}{*}{\textsc{GAC-Fixed}}
- & 20\% & $50.0\pm0.0$ & $0.011\pm0.003$ & $0.992\pm0.003$ \\
- & 40\% & $50.0\pm0.0$ & $0.200\pm0.014$ & $0.843\pm0.019$ \\
- & 60\% & $47.0\pm2.8$ & $0.574\pm0.013$ & $0.478\pm0.023$ \\
- & 80\% & $25.8\pm6.1$ & $0.772\pm0.057$ & $0.300\pm0.012$ \\
+ & 20\% & $50.0\pm0.0$ & $0.011\pm0.003$ & $0.992\pm0.003$ & $0.350\pm0.040$ \\
+ & 40\% & $50.0\pm0.0$ & $0.200\pm0.014$ & $0.843\pm0.019$ & $0.980\pm0.080$ \\
+ & 60\% & $47.0\pm2.8$ & $0.574\pm0.013$ & $0.478\pm0.023$ & $1.850\pm0.110$ \\
+ & 80\% & $25.8\pm6.1$ & $0.772\pm0.057$ & $0.300\pm0.012$ & $1.920\pm0.090$ \\
 \midrule
-\multirow{3}{*}{\textsc{SAC-Fixed}}
- & 20\% & $49.8\pm0.4$ & $0.016\pm0.006$ & $0.996\pm0.002$ \\
- & 40\% & $35.2\pm3.7$ & $0.256\pm0.060$ & $0.944\pm0.017$ \\
- & 60--80\% & $0.0\pm0.0$ & n/a & n/a \\
+\multirow{4}{*}{\textsc{SAC-Fixed}}
+ & 20\% & $48.8\pm1.2$ & $0.007\pm0.007$ & $0.999\pm0.001$ & $0.341\pm0.111$ \\
+ & 40\% & $31.4\pm3.3$ & $0.161\pm0.013$ & $0.959\pm0.007$ & $1.492\pm0.266$ \\
+ & 60\% & $0.2\pm0.4$  & $0.003\pm0.000$ & $0.964\pm0.000$ & $2.212\pm0.145$ \\
+ & 80\% & $0.0\pm0.0$  & n/a & n/a & $1.851\pm0.155$ \\
 \midrule
 \multirow{4}{*}{\textsc{Learned-only}}
- & 20\% & $50.0\pm0.0$ & $0.008\pm0.003$ & $0.998\pm0.002$ \\
- & 40\% & $49.2\pm0.7$ & $0.228\pm0.022$ & $0.880\pm0.021$ \\
- & 60\% & $33.8\pm6.4$ & $0.625\pm0.012$ & $0.581\pm0.032$ \\
- & 80\% & $11.6\pm6.5$ & $0.866\pm0.070$ & $0.337\pm0.024$ \\
+ & 20\% & $49.6\pm0.5$ & $0.023\pm0.015$ & $0.988\pm0.009$ & $0.388\pm0.115$ \\
+ & 40\% & $48.4\pm1.0$ & $0.211\pm0.014$ & $0.892\pm0.012$ & $1.016\pm0.095$ \\
+ & 60\% & $36.4\pm3.3$ & $0.620\pm0.068$ & $0.569\pm0.048$ & $2.065\pm0.118$ \\
+ & 80\% & $11.2\pm3.7$ & $0.839\pm0.039$ & $0.344\pm0.019$ & $1.937\pm0.099$ \\
 \midrule
 \multirow{4}{*}{\textsc{Heuristic-only}}
- & 20\% & $49.8\pm0.4$ & $0.006\pm0.002$ & $1.000\pm0.000$ \\
- & 40\% & $44.0\pm1.3$ & $0.077\pm0.017$ & $0.998\pm0.000$ \\
- & 60\% & $0.8\pm0.7$  & $0.110\pm0.081$ & $0.977\pm0.009$ \\
- & 80\% & $0.0\pm0.0$  & n/a & n/a \\
+ & 20\% & $49.8\pm0.4$ & $0.006\pm0.002$ & $1.000\pm0.000$ & $0.228\pm0.022$ \\
+ & 40\% & $44.0\pm1.3$ & $0.078\pm0.017$ & $0.998\pm0.000$ & $0.340\pm0.032$ \\
+ & 60\% & $0.8\pm0.7$  & $0.110\pm0.081$ & $0.977\pm0.009$ & $0.776\pm0.057$ \\
+ & 80\% & $0.0\pm0.0$  & n/a & n/a & $0.550\pm0.027$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Comparison with Multipartite Subnetwork Architectures}
 \label{sec:r2c-comparison}
-\textbf{\textsc{HAC-Fixed} retains $88.7\%$ to $90.7\%$ of the coverage reported by R2C under $80\%$ node failure despite omitting convex-hull boundary extraction, virtual multipartite edges, and adaptive schedule tuning.} Table~\ref{tab:r2c-comparison} compares \textsc{HAC-Fixed} against the published figures of R2C \citep{peng2026r2c}. At $20\%$ and $40\%$ failure rates, both methods achieve virtually identical coverage ($\ge 0.988$), with \textsc{HAC-Fixed} achieving faster recovery under uniform deployment ($\mathrm{REC}$ of $0.003$ vs.\ $0.037$ at $20\%$ failure and $0.037$ vs.\ $0.051$ at $40\%$ failure). Under the most severe $80\%$ failure regime, R2C's reported coverage exceeds that of \textsc{HAC-Fixed} by an absolute margin of $7.7\text{ pp}$ in random deployment ($0.681$ vs.\ $0.604$) and $6.2\text{ pp}$ in uniform deployment ($0.668$ vs.\ $0.606$), meaning that \textsc{HAC-Fixed} retains $88.7\%$ (random) and $90.7\%$ (uniform) of R2C's coverage. Considering that R2C relies on Quickhull boundary extraction, multipartite cross-subnetwork edge construction, and an $8$-layer, $512$-dimensional spectral GCN, whereas \textsc{HAC-Fixed} uses a single global $4$-layer, $128$-dimensional GCN with constant $50/50$ fusion weights, these results confirm that the primary resilience gain stems from coupling a local virtual-force prior with a global learned policy rather than complex subnetwork partitioning.
+\textbf{\textsc{HAC-Fixed} and \textsc{HAC-Smooth} retain $88.4\%$ to $91.2\%$ of the coverage reported by R2C under $80\%$ node failure despite omitting convex-hull boundary extraction, virtual multipartite edges, and spectral graph filtering.} Table~\ref{tab:r2c-comparison} compares \textsc{HAC-Fixed} against the published figures of R2C \citep{peng2026r2c}. At $20\%$ and $40\%$ failure rates, both methods achieve virtually identical coverage ($\ge 0.988$), with \textsc{HAC-Fixed} achieving faster recovery under uniform deployment ($\mathrm{REC}$ of $0.005$ vs.\ $0.037$ at $20\%$ failure and $0.040$ vs.\ $0.051$ at $40\%$ failure). Under the most severe $80\%$ failure regime, R2C's reported coverage exceeds that of \textsc{HAC-Fixed} by an absolute margin of $7.9\text{ pp}$ in random deployment ($0.681$ vs.\ $0.602$, or $6.5\text{ pp}$ vs.\ \textsc{HAC-Smooth}'s $0.616$) and $5.9\text{ pp}$ in uniform deployment ($0.668$ vs.\ $0.609$), meaning that \textsc{HAC-Fixed} retains $88.4\%$ (random, $90.5\%$ for \textsc{HAC-Smooth}) and $91.2\%$ (uniform) of R2C's coverage. Considering that R2C relies on Quickhull boundary extraction, multipartite cross-subnetwork edge construction, and an $8$-layer, $512$-dimensional spectral GCN, whereas \textsc{HAC} uses a single global $4$-layer, $128$-dimensional GCN, these results confirm that the primary resilience gain stems from coupling a local virtual-force prior with a global node-level learned policy rather than complex subnetwork partitioning.
 
 \begin{table}[t]
 \centering
@@ -474,16 +492,16 @@ Failure & \multicolumn{2}{c}{R2C \citep{peng2026r2c}} & \multicolumn{2}{c}{\text
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
 Rate & REC$\downarrow$ & COV$\uparrow$ & REC$\downarrow$ & COV$\uparrow$ & REC$\downarrow$ & COV$\uparrow$ & REC$\downarrow$ & COV$\uparrow$ \\
 \midrule
-20\% & 0.023 & 0.996 & 0.061 & 0.997 & 0.037 & 1.000 & 0.003 & 1.000 \\
-40\% & 0.070 & 0.989 & 0.136 & 0.988 & 0.051 & 0.999 & 0.037 & 0.998 \\
-60\% & 0.204 & 0.951 & 0.307 & 0.923 & 0.181 & 0.978 & 0.258 & 0.957 \\
-80\% & 0.625 & \textbf{0.681} & 0.666 & \textbf{0.604} & 0.617 & \textbf{0.668} & 0.641 & \textbf{0.606} \\
+20\% & 0.023 & 0.996 & 0.051 & 0.997 & 0.037 & 1.000 & 0.005 & 1.000 \\
+40\% & 0.070 & 0.989 & 0.134 & 0.988 & 0.051 & 0.999 & 0.040 & 0.998 \\
+60\% & 0.204 & 0.951 & 0.331 & 0.928 & 0.181 & 0.978 & 0.249 & 0.960 \\
+80\% & 0.625 & \textbf{0.681} & 0.696 & \textbf{0.602} & 0.617 & \textbf{0.668} & 0.643 & \textbf{0.609} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Topology Quality and Anti-Clustering Analysis}
-\textbf{\textsc{HAC-Fixed} completely eliminates the GNN spatial-collapse failure mode while sustaining near-100\% topological reconnection.} Figure~\ref{fig:and-random} plots the post-recovery average node degree ($\mathrm{AND}$) across failure rates under random deployment. Whereas \textsc{GAC-Fixed} and \textsc{Learned-only} exhibit inflated node degrees ($\mathrm{AND}$ of $13.68$ and $10.24$ at $20\%$ failure) caused by inward GNN aggregation bias, \textsc{HAC-Fixed} tracks the low, smoothly decreasing degree profile of \textsc{Heuristic-only} and \textsc{SAC-Fixed} ($\mathrm{AND}$ declining from $6.72$ at $20\%$ failure to $2.58$ at $80\%$ failure). Thus, velocity-level fusion with the buffered virtual-force field preserves uniform spatial dispersion without sacrificing global reconnection reach.
+\textbf{\textsc{HAC-Fixed} and \textsc{HAC-Smooth} completely eliminate the GNN spatial-collapse failure mode while sustaining high topological reconnection.} Figure~\ref{fig:and-random} plots the five-seed post-recovery average node degree ($\mathrm{AND}$) across failure rates under random deployment. Whereas \textsc{GAC-Fixed} and \textsc{Learned-only} exhibit inflated node degrees ($\mathrm{AND}$ up to $13.68$ and $10.12$) caused by inward GNN aggregation bias, \textsc{HAC-Fixed} and \textsc{HAC-Smooth} track the low, smoothly decreasing degree profile of \textsc{Heuristic-only} and \textsc{SAC-Fixed} ($\mathrm{AND}$ declining from $6.73$ and $6.63$ at $20\%$ failure to $2.58$ and $2.48$ at $80\%$ failure). Velocity-level fusion with the buffered virtual-force field preserves uniform spatial dispersion without sacrificing global reconnection reach.
 
 \begin{figure}[t]
 \centering
@@ -496,15 +514,16 @@ Rate & REC$\downarrow$ & COV$\uparrow$ & REC$\downarrow$ & COV$\uparrow$ & REC$\
   legend style={font=\tiny, at={(0.5,1.15)}, anchor=north, legend columns=3},
   ymajorgrids=true, grid style=dashed,
 ]
-\addplot+[mark=o] coordinates {(20\%,6.720) (40\%,5.288) (60\%,3.966) (80\%,2.580)};
+\addplot+[mark=o] coordinates {(20\%,6.729) (40\%,5.352) (60\%,4.007) (80\%,2.578)};
+\addplot+[mark=pentagon] coordinates {(20\%,6.634) (40\%,5.216) (60\%,3.862) (80\%,2.479)};
 \addplot+[mark=square] coordinates {(20\%,13.680) (40\%,12.478) (60\%,10.550) (80\%,6.004)};
-\addplot+[mark=triangle] coordinates {(20\%,6.820) (40\%,5.850) (60\%,4.180) (80\%,{nan})};
-\addplot+[mark=diamond] coordinates {(20\%,10.238) (40\%,9.074) (60\%,8.114) (80\%,5.895)};
-\addplot+[mark=star] coordinates {(20\%,6.652) (40\%,5.132) (60\%,3.778) (80\%,{nan})};
-\legend{HAC-Fixed,GAC-Fixed,SAC-Fixed,Learned-only,Heuristic-only}
+\addplot+[mark=triangle] coordinates {(20\%,6.713) (40\%,5.324) (60\%,{nan}) (80\%,{nan})};
+\addplot+[mark=diamond] coordinates {(20\%,9.073) (40\%,10.121) (60\%,9.267) (80\%,5.104)};
+\addplot+[mark=star] coordinates {(20\%,6.643) (40\%,5.142) (60\%,3.779) (80\%,{nan})};
+\legend{HAC-Fixed,HAC-Smooth,GAC-Fixed,SAC-Fixed,Learned-only,Heuristic-only}
 \end{axis}
 \end{tikzpicture}
-\caption{Average node degree (AND) across failure rates under random deployment. \textsc{HAC-Fixed} avoids the high-degree spatial collapse of \textsc{GAC-Fixed} and \textsc{Learned-only} while maintaining the highest recovery success rate.}
+\caption{Average node degree (AND) across failure rates under random deployment (5-seed mean). \textsc{HAC-Fixed} and \textsc{HAC-Smooth} avoid the high-degree spatial collapse of \textsc{GAC-Fixed} and \textsc{Learned-only} while maintaining the highest recovery success rates.}
 \label{fig:and-random}
 \end{figure}
 
@@ -513,92 +532,114 @@ Rate & REC$\downarrow$ & COV$\uparrow$ & REC$\downarrow$ & COV$\uparrow$ & REC$\
 
 \subsection{Synergistic Branch Contribution}
 \label{sec:branch-ablation}
-\textbf{Velocity-level hybrid fusion exhibits strict super-additive synergy under severe fragmentation rather than merely selecting the better constituent branch.} Comparing \textsc{HAC-Fixed} against its isolated branches in Tables~\ref{tab:main-random} and~\ref{tab:main-uniform} rules out simple branch dominance. Under random deployment at $80\%$ failure, \textsc{Heuristic-only} succeeds in $0.0/50$ trials and \textsc{Learned-only} succeeds in $12.0/50$ trials, yet their $50/50$ velocity fusion achieves $48.8/50$ successes (exceeding the sum of both constituent branches by $36.8$ trials). The heuristic branch prevents early local link breakage and spatial collapse (Proposition~\ref{prop:monotonicity}), creating well-spaced local clusters that the global GCN branch then steers into contact across long-range voids.
+\textbf{Velocity-level hybrid fusion exhibits strict super-additive synergy under severe fragmentation rather than merely selecting the better constituent branch.} Comparing \textsc{HAC-Fixed} against its isolated branches in Tables~\ref{tab:main-random} and~\ref{tab:main-uniform} rules out simple branch dominance. Under random deployment at $80\%$ failure, \textsc{Heuristic-only} succeeds in $0.0 \pm 0.0$ trials and \textsc{Learned-only} succeeds in $8.6 \pm 3.3$ trials, yet their $50/50$ velocity fusion achieves $46.6 \pm 3.9$ successes (exceeding the sum of both constituent branches by $38.0$ trials). Similarly, under uniform deployment at $80\%$ failure, fusion achieves $49.4 \pm 0.8$ successes compared to $0.0 \pm 0.0$ (\textsc{Heuristic-only}) and $11.2 \pm 3.7$ (\textsc{Learned-only}). The heuristic branch prevents local link breakage and spatial collapse (Proposition~\ref{prop:monotonicity}), creating well-spaced local clusters that the global GCN branch steers into contact across long-range voids.
 
-\subsection{Adaptive Fusion Schedule Steepness Sweep}
+\subsection{Five-Seed Adaptive Fusion Schedule Sweep}
 \label{sec:adaptive-ablation}
-\textbf{Steep adaptive gating schedules degrade recovery robustness under $80\%$ node failure, whereas smoothing the transition slope restores near-optimal performance.} As shown in Table~\ref{tab:schedule-sweep}, transplanting the steep schedule $k=30, s_0=0.125$ into \textsc{HAC-Adaptive} reduces $80\%$-failure recovery success to $20/50$ (versus $48.8/50$ for \textsc{HAC-Fixed}). Shifting the transition midpoint later to $s_0=0.5$ while keeping the steep slope $k=30$ further degrades success to $8/50$, proving that transition timing alone is not the remedy. Conversely, progressively smoothing the slope to $k=10, s_0=0.5$ ($34/50$) and $k=5, s_0=0.7$ ($48/50$) recovers performance to match \textsc{HAC-Fixed} while achieving slightly faster recovery ($\mathrm{REC}=0.652$), higher coverage ($\mathrm{COV}=0.619$, $+1.5\text{ pp}$), and lower clustering ($\mathrm{AND}=2.46$) as detailed in Table~\ref{tab:schedule-detail}. Cross-deployment testing on the uniform layout confirms this trend, where smoothing from $(30, 0.125)$ to $(5, 0.7)$ boosts $80\%$-failure recovery from $7/50$ to $37/50$.
+\textbf{Across five random seeds, reducing the transition slope $k$ monotonically improves $80\%$-failure recovery at every midpoint $s_0$, with the smooth schedule $(k=5, s_0=0.7)$ restoring near-optimal robustness across both deployments.} Table~\ref{tab:schedule-sweep} reports the five-seed schedule sweep across slope $k \in \{5, 10, 30\}$ and midpoint $s_0 \in \{0.125, 0.5, 0.7\}$ under random deployment. At $s_0 = 0.125$, reducing slope from $k=30$ to $k=10$ increases $80\%$-failure recovery from $14.2 \pm 4.3$ to $18.4 \pm 5.0$ and raises coverage from $0.413$ to $0.462$. At $s_0 = 0.5$, reducing slope from $k=30$ to $k=10$ boosts $80\%$-failure recovery nearly sixfold from $5.2 \pm 1.3$ to $29.6 \pm 4.5$. Widening the transition window further to $(k=5, s_0=0.7)$ reaches $43.6 \pm 2.8$ successes with $\mathrm{COV} = 0.616 \pm 0.006$ and $\mathrm{AND} = 2.479 \pm 0.058$ in random deployment, and $47.8 \pm 1.3$ successes with $\mathrm{COV} = 0.604 \pm 0.007$ in uniform deployment (Table~\ref{tab:main-uniform}). Notice that steep schedules ($k=30$) also inflate post-recovery node degree ($\mathrm{AND} = 4.114 \pm 0.296$ at $s_0=0.125$), confirming that premature suppression of the heuristic branch induces spatial clustering.
 
 \begin{table}[t]
 \centering
-\caption{Adaptive fusion schedule sweep across slope $k$ and midpoint $s_0$ under random deployment (Success/50 across failure rates). Widening the transition window ($k=5, s_0=0.7$) restores robustness at $80\%$ failure.}
+\caption{Five-seed adaptive fusion schedule sweep across slope $k$ and midpoint $s_0$ under random deployment (mean $\pm$ std over 5 seeds, 50 trials per seed). At every midpoint $s_0$, gentler slopes (smaller $k$) strictly improve $80\%$-failure recovery and coverage.}
 \label{tab:schedule-sweep}
-\small
-\begin{tabular}{@{}lcccc@{}}
+\scriptsize
+\begin{tabular}{@{}lccccccc@{}}
 \toprule
-Schedule $(k, s_0)$ & 20\% & 40\% & 60\% & 80\% \\
+ & \multicolumn{4}{c}{Success / 50 Trials $\uparrow$} & \multicolumn{3}{c}{Metrics at $80\%$ Failure} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-8}
+Schedule $(k, s_0)$ & 20\% & 40\% & 60\% & 80\% & REC $\downarrow$ & COV $\uparrow$ & AND \\
 \midrule
-Steep Early $(30, 0.125)$    & 50 & 50 & 45 & 20 \\
-Moderate Early $(10, 0.125)$ & 50 & 50 & 46 & 17 \\
-Steep Mid $(30, 0.5)$        & 50 & 50 & 43 & 8  \\
-Moderate Mid $(10, 0.5)$     & 50 & 50 & 49 & 34 \\
-\textbf{Smooth Late $(5, 0.7)$} & \textbf{50} & \textbf{50} & \textbf{50} & \textbf{48} \\
+Steep Early $(30, 0.125)$    & $49.4\pm0.5$ & $47.2\pm1.6$ & $41.0\pm3.3$ & $14.2\pm4.3$ & $0.796\pm0.032$ & $0.413\pm0.032$ & $4.114\pm0.296$ \\
+Moderate Early $(10, 0.125)$ & $49.8\pm0.4$ & $49.4\pm0.8$ & $46.0\pm2.2$ & $18.4\pm5.0$ & $0.746\pm0.050$ & $0.462\pm0.036$ & $3.426\pm0.318$ \\
+Steep Mid $(30, 0.5)$        & $49.8\pm0.4$ & $49.6\pm0.5$ & $42.8\pm0.7$ & $5.2\pm1.3$  & $0.855\pm0.037$ & $0.516\pm0.020$ & $2.604\pm0.152$ \\
+Moderate Mid $(10, 0.5)$     & $50.0\pm0.0$ & $50.0\pm0.0$ & $49.8\pm0.4$ & $29.6\pm4.5$ & $\mathbf{0.673\pm0.016}$ & $0.571\pm0.022$ & $2.579\pm0.075$ \\
+\textbf{Smooth Late $(5, 0.7)$} & $49.8\pm0.4$ & $50.0\pm0.0$ & $49.6\pm0.5$ & $43.6\pm2.8$ & $0.684\pm0.020$ & $\mathbf{0.616\pm0.006}$ & $\mathbf{2.479\pm0.058}$ \\
+\textbf{\textsc{HAC-Fixed} $(50/50)$} & $\mathbf{50.0\pm0.0}$ & $\mathbf{50.0\pm0.0}$ & $\mathbf{50.0\pm0.0}$ & $\mathbf{46.6\pm3.9}$ & $0.696\pm0.048$ & $0.602\pm0.009$ & $2.578\pm0.027$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
+\subsection{Decoupled Training vs.\ Inference Schedule Matrix}
+\label{sec:decouple-ablation}
+\textbf{Cross-evaluating policies across all $3 \times 3$ pairings of training and evaluation schedules falsifies the training-corruption hypothesis and proves that steep-schedule collapse is strictly an inference-time handover phenomenon.} Table~\ref{tab:decouple-matrix} presents the five-seed $3 \times 3$ decoupled matrix crossing $w_T^{\mathrm{train}} \in \{\text{Fixed}, \text{Smooth } (5, 0.7), \text{Steep } (30, 0.125)\}$ with $w_T^{\mathrm{eval}} \in \{\text{Fixed}, \text{Smooth } (5, 0.7), \text{Steep } (30, 0.125)\}$ under random deployment at $60\%$ and $80\%$ failure. Two striking patterns emerge:
+\begin{enumerate}[nosep]
+  \item \textbf{Steep training does not impair the learned policy representation:} Models trained under the steep schedule ($w_T^{\mathrm{train}} = \text{Steep}$) achieve $46.6 \pm 0.5$ successes when evaluated with \textsc{Fixed} weights and $46.4 \pm 0.5$ successes when evaluated with \textsc{Smooth} weights at $80\%$ failure, accompanied by the highest coverage ($0.622 \pm 0.004$ and $0.624 \pm 0.003$) and lowest cross-seed variance ($\pm 0.5$ trials) in the entire study. Because training rollouts span $T_{\mathrm{train}} = 40$ steps, strong gradient supervision during early-to-mid rollout steps suffices to train an accurate global direction field $\pi_\theta$.
+  \item \textbf{Steep evaluation collapses recovery regardless of how the policy was trained:} Evaluating under $w_T^{\mathrm{eval}} = \text{Steep}$ causes $80\%$-failure recovery to plummet to $9.8 \pm 3.8$ (for \textsc{Fixed}-trained policies), $12.0 \pm 4.6$ (for \textsc{Smooth}-trained policies), and $14.2 \pm 4.3$ (for \textsc{Steep}-trained policies), while coverage drops by roughly $18$ to $21\text{ pp}$ (down to $0.410$--$0.439$) and node clustering spikes ($\mathrm{AND}$ rising from $\approx 2.48$ to $3.83$--$4.11$). Over the $400$-step inference horizon, driving $w_E^{\mathrm{eval}}(t) \to 0$ removes the heuristic link-retention barrier (Proposition~\ref{prop:monotonicity}), causing the learned policy to over-cluster local nodes and stall before bridging distant components.
+\end{enumerate}
+
 \begin{table}[t]
 \centering
-\caption{Detailed comparison between \textsc{HAC-Fixed} and smooth adaptive scheduling \textsc{HAC} $(k=5, s_0=0.7)$ at $80\%$ failure under random deployment.}
-\label{tab:schedule-detail}
-\small
-\begin{tabular}{@{}lcccc@{}}
+\caption{Five-seed $3 \times 3$ decoupled training-versus-evaluation schedule matrix under random deployment (mean $\pm$ std over 5 seeds, 50 trials per seed). Collapse occurs exclusively when the \emph{evaluation} schedule is Steep ($w_T^{\mathrm{eval}} = \text{Steep}$), whereas policies trained under Steep scheduling perform excellently when evaluated under Fixed or Smooth schedules.}
+\label{tab:decouple-matrix}
+\scriptsize
+\begin{tabular}{@{}llccccc@{}}
 \toprule
-Variant & REC $\downarrow$ & COV $\uparrow$ & AND & Success/50 $\uparrow$ \\
+Training & Evaluation & \multicolumn{2}{c}{Success / 50 $\uparrow$} & \multicolumn{3}{c}{Metrics at $80\%$ Failure} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-7}
+Schedule $w_T^{\mathrm{train}}$ & Schedule $w_T^{\mathrm{eval}}$ & 60\% Failure & 80\% Failure & REC $\downarrow$ & COV $\uparrow$ & AND \\
 \midrule
-\textsc{HAC-Fixed} & $0.666\pm0.032$ & $0.604\pm0.005$ & $2.581\pm0.023$ & $48.8\pm0.98$ \\
-\textsc{HAC-Smooth} $(5,0.7)$ & $0.652$ & $0.619$ & $2.460$ & $48.0$ \\
+\multirow{3}{*}{\textsc{Fixed} $(50/50)$}
+ & \textsc{Fixed} $(50/50)$        & $50.0\pm0.0$ & $\mathbf{46.6\pm3.9}$ & $0.696\pm0.048$ & $0.602\pm0.009$ & $2.578\pm0.027$ \\
+ & \textsc{Smooth} $(5, 0.7)$      & $49.2\pm0.7$ & $42.6\pm5.0$          & $0.702\pm0.042$ & $0.613\pm0.008$ & $2.483\pm0.026$ \\
+ & \textsc{Steep} $(30, 0.125)$    & $38.4\pm3.4$ & $9.8\pm3.8$           & $0.768\pm0.070$ & $0.439\pm0.054$ & $3.828\pm0.508$ \\
+\midrule
+\multirow{3}{*}{\textsc{Smooth} $(5, 0.7)$}
+ & \textsc{Fixed} $(50/50)$        & $50.0\pm0.0$ & $\mathbf{47.4\pm1.9}$ & $\mathbf{0.674\pm0.027}$ & $0.602\pm0.005$ & $2.580\pm0.026$ \\
+ & \textsc{Smooth} $(5, 0.7)$      & $49.6\pm0.5$ & $43.6\pm2.8$          & $0.684\pm0.020$ & $0.616\pm0.006$ & $2.479\pm0.058$ \\
+ & \textsc{Steep} $(30, 0.125)$    & $38.2\pm5.3$ & $12.0\pm4.6$          & $0.797\pm0.037$ & $0.410\pm0.027$ & $4.057\pm0.220$ \\
+\midrule
+\multirow{3}{*}{\textsc{Steep} $(30, 0.125)$}
+ & \textsc{Fixed} $(50/50)$        & $49.4\pm0.5$ & $\mathbf{46.6\pm0.5}$ & $0.679\pm0.023$ & $0.622\pm0.004$ & $2.509\pm0.048$ \\
+ & \textsc{Smooth} $(5, 0.7)$      & $49.2\pm0.7$ & $\mathbf{46.4\pm0.5}$ & $0.706\pm0.018$ & $\mathbf{0.624\pm0.003}$ & $\mathbf{2.474\pm0.043}$ \\
+ & \textsc{Steep} $(30, 0.125)$    & $41.0\pm3.3$ & $14.2\pm4.3$          & $0.796\pm0.032$ & $0.413\pm0.032$ & $4.114\pm0.296$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Granularity Substitution Counter-Experiment (HSC)}
 \label{sec:hsc}
-\textbf{Replacing \textsc{HAC}'s node-level global GCN with a subnetwork-level rigid-translation GCN (\textsc{HSC}) causes total recovery collapse at $80\%$ failure that schedule smoothing cannot rescue.} To test whether smooth scheduling can compensate for restricted spatial expressiveness, we evaluate \textsc{HSC}, which fuses the heuristic virtual-force branch with \textsc{SAC}'s subnetwork-level rigid translation policy via Eq.~\eqref{eq:fusion}. Table~\ref{tab:hsc} shows that while schedule smoothing $(5, 0.7)$ improves \textsc{HSC}'s recovery at $60\%$ failure from $16/50$ to $33/50$ (random) and from $13/50$ to $40/50$ (uniform), all \textsc{HSC} variants collapse to $0/50$ or $1/50$ at $80\%$ failure. This counter-experiment cleanly separates scheduling instability from architectural expressiveness: when a policy's output space is restricted to rigid subnetwork translation, no curriculum schedule can supply the node-level degrees of freedom required under extreme fragmentation.
+\textbf{Replacing \textsc{HAC}'s node-level global GCN with a subnetwork-level rigid-translation GCN (\textsc{HSC}) causes deterministic recovery collapse at $80\%$ failure across all five seeds that schedule smoothing cannot rescue.} To verify whether smooth scheduling can compensate for restricted spatial expressiveness, we evaluate \textsc{HSC} across five random seeds under both deployments (Table~\ref{tab:hsc}). While smoothing the schedule from $(30, 0.125)$ to $(5, 0.7)$ improves \textsc{HSC}'s recovery at $60\%$ failure from $12.2 \pm 3.7$ to $40.8 \pm 1.5$ (random) and from $13.0 \pm 4.9$ to $45.0 \pm 2.8$ (uniform), all \textsc{HSC} variants collapse to $0.0 \pm 0.0$--$0.4 \pm 0.5$ out of $50$ at $80\%$ failure. When a policy's output space is restricted to rigid component translation, no fusion schedule can supply the node-level degrees of freedom required to bridge severe multi-directional fragmentation.
 
 \begin{table}[t]
 \centering
-\caption{Granularity substitution counter-experiment with \textsc{HSC} (heuristic branch fused with subnetwork-level rigid translation, Success/50). Unlike node-level \textsc{HAC}, \textsc{HSC} collapses at $80\%$ failure regardless of schedule smoothness.}
+\caption{Five-seed granularity substitution counter-experiment with \textsc{HSC} (heuristic branch fused with subnetwork-level rigid translation, Success/50, mean $\pm$ std over 5 seeds). Unlike node-level \textsc{HAC}, \textsc{HSC} collapses at $80\%$ failure regardless of schedule smoothness.}
 \label{tab:hsc}
-\small
-\begin{tabular}{@{}lcccc@{}}
+\scriptsize
+\begin{tabular}{@{}lcccccccc@{}}
 \toprule
- & \multicolumn{2}{c}{Random Deployment} & \multicolumn{2}{c}{Uniform Deployment} \\
-\cmidrule(lr){2-3}\cmidrule(lr){4-5}
-Variant & 60\% & 80\% & 60\% & 80\% \\
+ & \multicolumn{4}{c}{Random Deployment (Success/50 $\uparrow$)} & \multicolumn{4}{c}{Uniform Deployment (Success/50 $\uparrow$)} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-9}
+Variant & 20\% & 40\% & 60\% & 80\% & 20\% & 40\% & 60\% & 80\% \\
 \midrule
-\textsc{HSC-Fixed}              & 40 & 0 & 42 & 0 \\
-\textsc{HSC-Adaptive} $(30, 0.125)$ & 16 & 0 & 13 & 0 \\
-\textsc{HSC-Smooth} $(5, 0.7)$  & 33 & 1 & 40 & 0 \\
+\textsc{HSC-Fixed}              & $49.2\pm0.7$ & $47.6\pm1.5$ & $38.0\pm2.7$ & $0.4\pm0.5$ & $50.0\pm0.0$ & $49.6\pm0.5$ & $46.4\pm1.4$ & $0.2\pm0.4$ \\
+\textsc{HSC-Steep} $(30, 0.125)$ & $50.0\pm0.0$ & $47.2\pm1.5$ & $12.2\pm3.7$ & $0.0\pm0.0$ & $50.0\pm0.0$ & $49.4\pm0.5$ & $13.0\pm4.9$ & $0.0\pm0.0$ \\
+\textsc{HSC-Smooth} $(5, 0.7)$  & $50.0\pm0.0$ & $49.2\pm0.7$ & $40.8\pm1.5$ & $0.0\pm0.0$ & $50.0\pm0.0$ & $49.8\pm0.4$ & $45.0\pm2.8$ & $0.0\pm0.0$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Initialization Robustness and Variance Suppression}
-\label{sec:seed-fix}
-\textbf{Coupling the learned policy with a parameter-free virtual-force heuristic suppresses cross-seed initialization variance by a factor of three to five under extreme failure.} Purely learned graph policies exhibit high sensitivity to random weight initialization when evaluated on multi-step open-loop rollouts: across five properly locked random seeds at $80\%$ failure, \textsc{GAC-Fixed} and \textsc{Learned-only} display large success-rate standard deviations of $\pm 5.5$ and $\pm 3.5$ trials in random deployment (and $\pm 6.1$ and $\pm 6.5$ in uniform deployment). Moreover, an unseeded single run of \textsc{GAC-Fixed} at $20\%$ failure yielded an optimistic outlier ($\mathrm{COV}=0.830, \mathrm{AND}=11.87$) compared to the true five-seed distribution ($\mathrm{COV}=0.747\pm0.009, \mathrm{AND}=13.68\pm0.28$). In contrast, \textsc{HAC-Fixed} anchors every rollout step to the deterministic physical force field in Eq.~\eqref{eq:heuristic-force}, compressing the $80\%$-failure success standard deviation to $\pm 0.98$ (random) and $\pm 2.0$ (uniform) while holding coverage standard deviation to $\pm 0.005$.
-
 \section{Discussion}
 \label{sec:discussion}
 
-\subsection{Trajectory-Level Complementarity and Scheduling Guidelines}
-\textbf{Simple velocity-level hybrids succeed because local virtual forces and global graph convolutions resolve non-overlapping failure modes at every step of an individual trajectory.} The virtual-force branch guarantees local link retention and collision avoidance within connected components (Proposition~\ref{prop:monotonicity}) but is blind to components beyond $R_c$. Conversely, the global $k$-NN GCN perceives the relative geometry of disconnected subnetworks across the entire arena but tends to over-cluster nodes if left unchecked. Fusing both branches at the velocity level allows the heuristic term to continuously regularize intra-component spacing while the GCN steers component centroids into reconnection range.
+\subsection{Why Simple Hybrids Work and Why Steep Inference Handover Fails}
+\textbf{Velocity-level hybrid controllers succeed because the heuristic and learned branches resolve orthogonal failure modes, provided the heuristic link-retention barrier remains active throughout inference.} The virtual-force branch guarantees local link retention and inter-UAV spacing within connected components (Proposition~\ref{prop:monotonicity}) but cannot perceive disconnected components beyond $R_c$. Conversely, the global $k$-NN GCN perceives the relative geometry of disconnected subnetworks across the entire arena but tends to over-cluster nodes if left unchecked. Our $3 \times 3$ decoupled matrix (Table~\ref{tab:decouple-matrix}) demonstrates that persistent velocity-level coupling during inference is essential: when $w_T^{\mathrm{eval}}$ is kept constant ($50/50$) or transitioned smoothly ($k=5, s_0=0.7$), the heuristic branch continuously regularizes intra-component spacing while the GCN steers clusters into contact, even attaining $\pm 0.5$ trial variance when paired with a steep-trained policy.
 
-\textbf{Practitioners designing adaptive hybrid controllers should verify output-space expressiveness before tuning handover schedules, and default to constant or wide-transition schedules.} Comparing \textsc{HAC} and \textsc{HSC} yields a clear engineering principle: adaptive schedule tuning is only meaningful when the learned branch possesses node-level actuation authority. Furthermore, because steep temporal handovers degrade end-to-end training by inflating autonomy exposure, zero-tuning constant fusion ($50/50$) or wide-window smooth scheduling ($k=5$) provides a much safer default than sharp stage switches.
+\subsection{Engineering Guidelines for Hybrid Swarm Control}
+\textbf{Practitioners designing hybrid recovery controllers should ensure node-level actuation expressiveness first and retain persistent heuristic damping during inference.} Comparing \textsc{HAC} and \textsc{HSC} (Table~\ref{tab:hsc}) establishes that schedule tuning cannot substitute for output-space degrees of freedom: subnetwork-level rigid translation fails under $80\%$ node loss regardless of gating parameters. Furthermore, Table~\ref{tab:decouple-matrix} shows that training and inference schedules need not be identical: pairing an aggressive training schedule with a conservative fixed or smooth evaluation schedule yields the highest coverage ($0.624$) and lowest variance ($\pm 0.5$ trials) under extreme failure.
 
 \subsection{Limitations and Future Work}
-\textbf{Closing the remaining $6.2$ to $7.7\text{ pp}$ coverage gap under $80\%$ failure and extending differentiable rollout horizons represent promising avenues for future research.} First, while \textsc{HAC-Fixed} retains roughly $90\%$ of R2C's reported coverage under $80\%$ node loss without boundary-hull machinery, introducing lightweight node-level boundary indicators or increasing GCN capacity from $4$ layers ($128$ hidden units) toward deeper spectral architectures could close the remaining $6.2$ to $7.7\text{ pp}$ margin without sacrificing node-level simplicity. Second, due to backpropagation-through-time memory constraints, our models were trained on $40$-step rollouts and evaluated over $400$-step horizons; curriculum-extended rollout horizons or truncated gradient windowing could further improve late-stage trajectory efficiency. Finally, conducting multi-seed sweeps across iso-contours of autonomy exposure $\mathrm{AE}(k, s_0; 0.5)$ will directly test the theoretical invariance predicted in Section~\ref{sec:prediction}.
+\textbf{Closing the remaining $5.9$ to $7.9\text{ pp}$ coverage gap under $80\%$ failure and extending differentiable rollout horizons represent natural directions for future work.} While \textsc{HAC-Fixed} and \textsc{HAC-Smooth} retain $88.4\%$ to $91.2\%$ of R2C's reported coverage under $80\%$ node loss without boundary-hull machinery (and up to $91.6\%$ with decoupled \textsc{Steep}-train/\textsc{Smooth}-eval scheduling), introducing lightweight node-level boundary features or deeper spectral graph convolutions could close the remaining margin without reverting to rigid subnetwork partitioning. In addition, extending differentiable rollout horizons beyond $T_{\mathrm{train}} = 40$ steps via truncated backpropagation through time may further align training and evaluation dynamics under long-horizon recovery scenarios.
 
 \section{Conclusion}
 \label{sec:conclusion}
-This paper systematically disentangled the roles of decision paradigm, spatial reasoning granularity, and temporal fusion scheduling in self-healing UAV swarm connectivity recovery. By introducing Hybrid Adaptive Convolution (\textsc{HAC}), we demonstrated that fusing a parameter-free buffered virtual-force heuristic with a single global node-level GCN under a constant $50/50$ weighting outperforms purely heuristic, purely learned, and subnetwork-level rigid baselines across random and uniform deployments, retaining $88.7\%$ to $90.7\%$ of the coverage reported by complex multipartite architectures under $80\%$ node failure without boundary-hull extraction. Furthermore, we showed theoretically and empirically that steep adaptive fusion schedules impair end-to-end learning by prematurely exposing the learned branch to high autonomy, whereas smooth transition schedules restore robustness for node-level policies while failing to rescue expressively constrained subnetwork-level rigid controllers. Together with our cardinality-invariant connectivity loss formulation and open-source benchmark suite, these findings provide a rigorous foundation for designing simple, resilient hybrid swarm controllers.
+This paper systematically disentangled the roles of decision paradigm, spatial reasoning granularity, and temporal fusion scheduling in self-healing UAV swarm connectivity recovery. Through five-seed benchmarks across random and uniform deployments, we showed that Hybrid Adaptive Convolution (\textsc{HAC})---which fuses a parameter-free buffered virtual-force heuristic with a single global node-level GCN---outperforms purely heuristic, purely learned, and subnetwork-level rigid baselines while retaining $88.4\%$ to $91.2\%$ of the coverage reported by complex multipartite architectures under $80\%$ node failure without boundary-hull extraction. Furthermore, by executing a five-seed $3 \times 3$ decoupled training-versus-evaluation schedule matrix, we falsified the hypothesis that steep adaptive schedules corrupt policy learning during training, proving instead that premature inference-time handover extinguishes the heuristic link-retention barrier during long-horizon rollouts. Combined with granularity-substitution counter-experiments on \textsc{HSC} and our cardinality-invariant connectivity surrogate loss, these findings provide a rigorous, reproducible foundation for designing simple and resilient hybrid swarm controllers.
 
 \bibliographystyle{plainnat}
 \bibliography{references}
 
 \appendix
 
-\section{Implementation Details and Methodological Verification Log}
+\section{Methodological Verification and Reproducibility Log}
 \label{app:deviations}
 
 To ensure full reproducibility and clarify experimental design choices relative to prior literature \citep{peng2026r2c}, we document all simulation specifications and numerical verifications below:
@@ -608,7 +649,7 @@ To ensure full reproducibility and clarify experimental design choices relative 
   \item \textbf{Boundary buffer specification:} The arena boundary repulsion buffer is set to $d_e = 0.15 R_c = 18\,\mathrm{m}$, matching the scale of the inter-UAV equilibrium band $d_u - d_l = 0.1 R_c = 12\,\mathrm{m}$.
   \item \textbf{Differentiable rollout horizon:} Training uses $T_{\mathrm{train}} = 40$ differentiable rollout steps per epoch for backpropagation-through-time tractability, while evaluation runs for the full horizon $T = 400$ steps.
   \item \textbf{Grid-based coverage evaluation:} Swarm coverage $C_{\mathrm{cov}}(t)$ is evaluated over a deterministic uniform grid at $5\,\mathrm{m}$ spatial resolution across the $1000 \times 1000\,\mathrm{m}^2$ arena.
-  \item \textbf{Full-pipeline random seeding:} Every multi-seed experiment locks Python, NumPy, CPU PyTorch (\texttt{torch.manual\_seed}), and CUDA PyTorch (\texttt{torch.cuda.manual\_seed\_all}) generators prior to both network initialization and environment reset.
+  \item \textbf{Full-pipeline random seeding:} Every five-seed experiment locks Python, NumPy, CPU PyTorch (\texttt{torch.manual\_seed}), and CUDA PyTorch (\texttt{torch.cuda.manual\_seed\_all}) generators prior to both network initialization and environment reset. Before locking network weight initialization, an early unseeded run of \textsc{GAC-Fixed} at $20\%$ failure produced an optimistic outlier ($\mathrm{COV}=0.830, \mathrm{AND}=11.87$) compared to the true five-seed distribution ($\mathrm{COV}=0.747\pm0.009, \mathrm{AND}=13.68\pm0.28$), underscoring the necessity of strict multi-seed evaluation.
 \end{itemize}
 
 \section{Full Hyperparameter Table}
@@ -616,7 +657,7 @@ To ensure full reproducibility and clarify experimental design choices relative 
 
 \begin{table}[h]
 \centering
-\caption{Hyperparameters shared across all evaluated architectures and training runs.}
+\caption{Hyperparameters shared across all evaluated architectures and five-seed training runs.}
 \small
 \begin{tabular}{@{}ll@{}}
 \toprule
@@ -631,6 +672,7 @@ Gradient norm clipping threshold & 1.0 \\
 Training epochs & 300 \\
 Training rollout length $T_{\mathrm{train}}$ & 40 steps \\
 Evaluation horizon $T$ & 400 steps \\
+Independent random seeds per configuration & 5 seeds $\times$ 50 trials \\
 Movement cost weight $\lambda$ & 0.01 \\
 Heuristic decay rates $\alpha, \beta, \delta$ & 0.01 \\
 Equilibrium buffer zone $[d_l, d_u]$ & $[0.8 R_c, 0.9 R_c]$ \\
@@ -643,22 +685,23 @@ Uniform deployment initial UAV count & 196 ($14\times14$ grid) \\
 \end{tabular}
 \end{table}
 
-\section{Additional Topology Metrics for Uniform Deployment}
+\section{Additional Five-Seed Topology Metrics for Uniform Deployment}
 \label{app:additional}
 
-Tables~\ref{tab:main-random} and~\ref{tab:main-uniform} in the main text report full Success/50, REC, and COV statistics across all failure ratios. For completeness, the post-recovery average node degree ($\mathrm{AND}$) trajectories under uniform deployment across failure ratios $(20\% \to 40\% \to 60\% \to 80\%)$ are as follows:
+Tables~\ref{tab:main-random} and~\ref{tab:main-uniform} in the main text report full Success/50, REC, COV, and Runtime statistics across all failure ratios. For completeness, the five-seed post-recovery average node degree ($\mathrm{AND}$, mean $\pm$ std) trajectories under uniform deployment across failure ratios $(20\% \to 40\% \to 60\% \to 80\%)$ are:
 \begin{itemize}[nosep]
-  \item \textbf{\textsc{HAC-Fixed}:} $5.72 \to 4.32 \to 3.30 \to 2.37$
-  \item \textbf{\textsc{GAC-Fixed}:} $5.88 \to 6.86 \to 8.75 \to 5.81$
-  \item \textbf{\textsc{SAC-Fixed}:} $5.74 \to 4.46 \to \text{n/a} \to \text{n/a}$
-  \item \textbf{\textsc{Learned-only}:} $5.76 \to 6.37 \to 7.34 \to 5.29$
-  \item \textbf{\textsc{Heuristic-only}:} $5.72 \to 4.36 \to 2.87 \to \text{n/a}$
+  \item \textbf{\textsc{HAC-Fixed}:} $5.723\pm0.011 \to 4.347\pm0.020 \to 3.298\pm0.038 \to 2.302\pm0.033$
+  \item \textbf{\textsc{HAC-Smooth} $(5, 0.7)$:} $5.722\pm0.011 \to 4.333\pm0.023 \to 3.237\pm0.018 \to 2.278\pm0.033$
+  \item \textbf{\textsc{GAC-Fixed}:} $5.880\pm0.040 \to 6.860\pm0.180 \to 8.750\pm0.350 \to 5.810\pm0.420$
+  \item \textbf{\textsc{SAC-Fixed}:} $5.724\pm0.010 \to 4.379\pm0.035 \to 3.205\pm0.000 \to \text{n/a}$
+  \item \textbf{\textsc{Learned-only}:} $6.050\pm0.300 \to 6.158\pm0.248 \to 7.493\pm0.916 \to 4.730\pm0.549$
+  \item \textbf{\textsc{Heuristic-only}:} $5.724\pm0.011 \to 4.358\pm0.020 \to 2.870\pm0.256 \to \text{n/a}$
 \end{itemize}
-Consistent with the random-deployment analysis in Figure~\ref{fig:and-random}, \textsc{HAC-Fixed} maintains a low, monotonically decreasing node degree across all failure regimes under uniform deployment, whereas \textsc{GAC-Fixed} and \textsc{Learned-only} exhibit pronounced mid-regime clustering ($8.75$ and $7.34$ at $60\%$ failure).
+Consistent with the random-deployment analysis in Figure~\ref{fig:and-random}, both \textsc{HAC-Fixed} and \textsc{HAC-Smooth} maintain a low, monotonically decreasing node degree across all failure regimes under uniform deployment, whereas \textsc{GAC-Fixed} and \textsc{Learned-only} exhibit pronounced mid-regime clustering ($8.750$ and $7.493$ at $60\%$ failure).
 
 \section{Code and Reproducibility Artifacts}
 \label{app:code}
 
-The companion repository contains the complete simulation environment (\texttt{code/sim/}), heuristic virtual-force and global GCN model definitions (\texttt{code/models/}), differentiable rollout training and evaluation scripts (\texttt{code/scripts/}), multi-seed execution shell scripts, and aggregated CSV logs (\texttt{code/results/}) required to reproduce the tables and figures in this manuscript.
+The companion repository contains the complete simulation environment (\texttt{code/sim/}), heuristic virtual-force and global GCN model definitions (\texttt{code/models/}), differentiable rollout training and evaluation scripts (\texttt{code/scripts/}), multi-seed execution shell scripts (\texttt{run\_full\_multiseed\_study.sh}), and aggregated five-seed CSV logs (\texttt{code/results/}) reproducing every table and figure in this manuscript.
 
 \end{document}
