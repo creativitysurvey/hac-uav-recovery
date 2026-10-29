@@ -543,6 +543,7 @@ Rate & REC$\downarrow$ & COV$\uparrow$ & REC$\downarrow$ & COV$\uparrow$ & REC$\
 \caption{Five-seed adaptive fusion schedule sweep across slope $k$ and midpoint $s_0$ under random deployment (mean $\pm$ std over 5 seeds, 50 trials per seed). At every midpoint $s_0$, gentler slopes (smaller $k$) strictly improve $80\%$-failure recovery and coverage.}
 \label{tab:schedule-sweep}
 \scriptsize
+\setlength{\tabcolsep}{3.8pt}
 \begin{tabular}{@{}lccccccc@{}}
 \toprule
  & \multicolumn{4}{c}{Success / 50 Trials $\uparrow$} & \multicolumn{3}{c}{Metrics at $80\%$ Failure} \\
@@ -605,6 +606,7 @@ Schedule $w_T^{\mathrm{train}}$ & Schedule $w_T^{\mathrm{eval}}$ & 60\% Failure 
 \caption{Five-seed granularity substitution counter-experiment with \textsc{HSC} (heuristic branch fused with subnetwork-level rigid translation, Success/50, mean $\pm$ std over 5 seeds). Unlike node-level \textsc{HAC}, \textsc{HSC} collapses at $80\%$ failure regardless of schedule smoothness.}
 \label{tab:hsc}
 \scriptsize
+\setlength{\tabcolsep}{4.2pt}
 \begin{tabular}{@{}lcccccccc@{}}
 \toprule
  & \multicolumn{4}{c}{Random Deployment (Success/50 $\uparrow$)} & \multicolumn{4}{c}{Uniform Deployment (Success/50 $\uparrow$)} \\
@@ -655,7 +657,7 @@ To ensure full reproducibility and clarify experimental design choices relative 
 \section{Full Hyperparameter Table}
 \label{app:hyperparams}
 
-\begin{table}[h]
+\begin{table}[ht]
 \centering
 \caption{Hyperparameters shared across all evaluated architectures and five-seed training runs.}
 \small
@@ -702,6 +704,6 @@ Consistent with the random-deployment analysis in Figure~\ref{fig:and-random}, b
 \section{Code and Reproducibility Artifacts}
 \label{app:code}
 
-The companion repository contains the complete simulation environment (\texttt{code/sim/}), heuristic virtual-force and global GCN model definitions (\texttt{code/models/}), differentiable rollout training and evaluation scripts (\texttt{code/scripts/}), multi-seed execution shell scripts (\texttt{run\_full\_multiseed\_study.sh}), and aggregated five-seed CSV logs (\texttt{code/results/}) reproducing every table and figure in this manuscript.
+The companion repository contains the complete simulation environment (\texttt{code/sim/}), heuristic virtual-force and global GCN model definitions (\texttt{code/models/}), differentiable rollout training and evaluation scripts (\texttt{code/scripts/}), shell scripts for multi-seed execution (\allowbreak\texttt{run\_full\_multiseed\_study.sh}), and aggregated five-seed CSV logs (\texttt{code/results/}) reproducing every table and figure in this manuscript.
 
 \end{document}
